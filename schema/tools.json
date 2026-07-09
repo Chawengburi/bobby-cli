@@ -1,0 +1,194 @@
+{
+  "$comment": "Agent tool-schema manifest for bobby-cli. See specs/09-spec-agent-tool-schema.md. This file is read-only data — never run as a server. Every invocation spawns a fresh `bobby-cli` subprocess; no shared connection or shared state across calls. Keep in sync with src/commands/auth.ts and src/commands/memory.ts whenever a command or flag changes. INVOCATION SAFETY (see specs/09-spec-agent-tool-schema.md § Invocation safety): `invocation` strings are illustrative only. An executor MUST build an argv array (e.g. child_process.execFile/spawn with an args array) and substitute each {placeholder} as its own argv element — never run the template through a shell or string-concatenate it, or a value containing spaces/quotes/shell metacharacters (especially {password}) can break argument boundaries or inject commands. An optional field that has no value MUST have its flag and value omitted entirely from argv — do not substitute an empty string (e.g. `--tags {tags}` with no tags becomes just `--tags`, which would incorrectly consume the next argv token).",
+  "version": "0.1.0",
+  "tools": [
+    {
+      "name": "auth_login",
+      "description": "Log in to auth-center and mint a session-memory API token, stored locally in ~/.bobby-cli/credentials.json. Only needs to be run once per machine/agent identity, not before every memory call. Prefer BOBBY_CLI_EMAIL/BOBBY_CLI_PASSWORD env vars over inline flags so the password never appears in a process list or shell history.",
+      "command": ["auth", "login"],
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "email": { "type": "string", "description": "Account email. Prefer passing via BOBBY_CLI_EMAIL env var instead of this field." },
+          "password": { "type": "string", "description": "Account password. Prefer passing via BOBBY_CLI_PASSWORD env var instead of this field — never log or echo this value." }
+        },
+        "required": ["email", "password"]
+      },
+      "output_schema": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": true },
+              "email": { "type": "string" },
+              "tenantId": { "type": ["string", "null"] }
+            },
+            "required": ["ok", "email"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": false },
+              "error": { "type": "string" }
+            },
+            "required": ["ok", "error"]
+          }
+        ]
+      },
+      "invocation": "BOBBY_CLI_EMAIL={email} BOBBY_CLI_PASSWORD={password} bobby-cli auth login --json"
+    },
+    {
+      "name": "auth_show",
+      "description": "Show the current login's metadata (email, tenant, token label/id, scopes, timestamps). Never returns the raw API token. Use this to check whether auth_login is needed before calling a memory_* tool.",
+      "command": ["auth", "show"],
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      },
+      "output_schema": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "loggedIn": { "const": true },
+              "email": { "type": "string" },
+              "tenantId": { "type": ["string", "null"] },
+              "apiTokenLabel": { "type": "string" },
+              "apiTokenId": { "type": "string" },
+              "scopes": { "type": "array", "items": { "type": "string" } },
+              "createdAt": { "type": "string" },
+              "expiresAt": { "type": ["string", "null"] },
+              "authCenterUrl": { "type": "string" },
+              "sessionMemoryUrl": { "type": "string" }
+            },
+            "required": ["loggedIn", "email"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "loggedIn": { "const": false }
+            },
+            "required": ["loggedIn"]
+          }
+        ]
+      },
+      "invocation": "bobby-cli auth show --json"
+    },
+    {
+      "name": "auth_forget",
+      "description": "Delete the local credential file. Local-only — does not revoke the token server-side. Rarely needed by an agent; mainly for a human resetting their own machine's login.",
+      "command": ["auth", "forget"],
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "ok": { "const": true },
+          "deleted": { "type": "boolean" }
+        },
+        "required": ["ok", "deleted"]
+      },
+      "invocation": "bobby-cli auth forget --json"
+    },
+    {
+      "name": "memory_show",
+      "description": "List recent memories, chronological, optionally filtered by a single tag. Requires a prior auth_login.",
+      "command": ["memory", "show"],
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "limit": { "type": "integer", "default": 10, "description": "Number of entries to return" },
+          "tags": { "type": "string", "description": "Single tag to filter by (only the first tag is honored even if comma-separated — see specs/03-spec-commands.md)" }
+        }
+      },
+      "output_schema": {
+        "oneOf": [
+          { "type": "object", "properties": { "ok": { "const": true }, "text": { "type": "string" } }, "required": ["ok", "text"] },
+          { "type": "object", "properties": { "ok": { "const": false }, "error": { "type": "string" } }, "required": ["ok", "error"] }
+        ]
+      },
+      "invocation": "bobby-cli memory show -n {limit} --tags {tags} --json"
+    },
+    {
+      "name": "memory_recall",
+      "description": "Semantically search saved memories by query text, optionally filtered by a single tag. Requires a prior auth_login.",
+      "command": ["memory", "recall"],
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string", "description": "Search text" },
+          "limit": { "type": "integer", "default": 5, "description": "Number of results to return" },
+          "tags": { "type": "string", "description": "Single tag to filter by" }
+        },
+        "required": ["query"]
+      },
+      "output_schema": {
+        "oneOf": [
+          { "type": "object", "properties": { "ok": { "const": true }, "text": { "type": "string" } }, "required": ["ok", "text"] },
+          { "type": "object", "properties": { "ok": { "const": false }, "error": { "type": "string" } }, "required": ["ok", "error"] }
+        ]
+      },
+      "invocation": "bobby-cli memory recall {query} -n {limit} --tags {tags} --json"
+    },
+    {
+      "name": "memory_remember",
+      "description": "Save a new memory with optional comma-separated tags. Requires a prior auth_login. `text` is optional: if omitted, the executor must pipe the content via stdin instead of a positional arg (this command reads stdin when no argument is given) — omit both the arg and the invocation template's {text} placeholder in that case, don't substitute an empty string.",
+      "command": ["memory", "remember"],
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string", "description": "Memory content to save. If omitted, provide content via stdin instead." },
+          "tags": { "type": "string", "description": "Comma-separated tags, e.g. \"work,idea\"" }
+        }
+      },
+      "output_schema": {
+        "oneOf": [
+          { "type": "object", "properties": { "ok": { "const": true }, "text": { "type": "string" } }, "required": ["ok", "text"] },
+          { "type": "object", "properties": { "ok": { "const": false }, "error": { "type": "string" } }, "required": ["ok", "error"] }
+        ]
+      },
+      "invocation": "bobby-cli memory remember {text} --tags {tags} --json"
+    },
+    {
+      "name": "memory_append",
+      "description": "Append additional context to an existing memory entry by ID. Requires a prior auth_login.",
+      "command": ["memory", "append"],
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "ID of the memory entry to append to" },
+          "text": { "type": "string", "description": "Text to append" }
+        },
+        "required": ["id", "text"]
+      },
+      "output_schema": {
+        "oneOf": [
+          { "type": "object", "properties": { "ok": { "const": true }, "text": { "type": "string" } }, "required": ["ok", "text"] },
+          { "type": "object", "properties": { "ok": { "const": false }, "error": { "type": "string" } }, "required": ["ok", "error"] }
+        ]
+      },
+      "invocation": "bobby-cli memory append {id} {text} --json"
+    },
+    {
+      "name": "memory_forget",
+      "description": "Delete a memory entry by ID. Requires a prior auth_login.",
+      "command": ["memory", "forget"],
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "ID of the memory entry to delete" }
+        },
+        "required": ["id"]
+      },
+      "output_schema": {
+        "oneOf": [
+          { "type": "object", "properties": { "ok": { "const": true }, "text": { "type": "string" } }, "required": ["ok", "text"] },
+          { "type": "object", "properties": { "ok": { "const": false }, "error": { "type": "string" } }, "required": ["ok", "error"] }
+        ]
+      },
+      "invocation": "bobby-cli memory forget {id} --json"
+    }
+  ]
+}

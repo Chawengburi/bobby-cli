@@ -48,6 +48,8 @@ npm run dev
 
 This runs `tsc --watch`, which rebuilds automatically every time you save a file. Leave it running in one terminal tab while you work.
 
+⚠️ **If you add or change a command, flag, or `--json` output shape**, update `schema/tools.json` in the same change. That file is the tool-schema manifest AI agents use to call bobby-cli (see `specs/09-spec-agent-tool-schema.md`) — it's hand-maintained, not generated, so it silently drifts out of sync with `src/commands/*.ts` if you forget.
+
 ### 4. Run it without installing anything
 
 ```bash

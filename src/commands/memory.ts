@@ -1,6 +1,5 @@
 import { Command } from "commander";
-import { requireCredentials, resolveSessionMemoryUrl, CliAuthError } from "../config.js";
-import { mcpToolCall, McpError } from "../mcpClient.js";
+import { requireCredentials, resolveSessionMemoryUrl, CliAuthError, mcpToolCall, McpError } from "../core/index.js";
 import { printError, printJson } from "../output.js";
 
 interface BaseOpts {

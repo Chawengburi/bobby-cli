@@ -9,8 +9,10 @@ import {
   resolveAuthCenterUrl,
   resolveSessionMemoryUrl,
   saveCredentials,
-} from "../config.js";
-import { login, mintApiToken, AuthCenterError } from "../authClient.js";
+  login,
+  mintApiToken,
+  AuthCenterError,
+} from "../core/index.js";
 import { printError, printInfo, printJson, printSuccess } from "../output.js";
 
 interface LoginOptions {
