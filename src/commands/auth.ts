@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import inquirer from "inquirer";
+import { hostname } from "node:os";
 import {
   credentialsExist,
   deleteCredentials,
@@ -63,7 +64,9 @@ async function runLogin(opts: LoginOptions): Promise<void> {
     const { email, password } = await resolveEmailPassword(opts);
 
     const { sessionToken, user } = await login(authCenterUrl, email, password);
-    const minted = await mintApiToken(authCenterUrl, sessionToken, "bobby-cli");
+    // Per-install label so a second machine's login doesn't collide with this one's token.
+    const tokenLabel = `bobby-cli@${hostname()}`;
+    const minted = await mintApiToken(authCenterUrl, sessionToken, tokenLabel);
 
     saveCredentials({
       authCenterUrl,
@@ -72,7 +75,7 @@ async function runLogin(opts: LoginOptions): Promise<void> {
       tenantId: user.tenantId,
       apiToken: minted.rawToken,
       apiTokenId: minted.tokenId,
-      apiTokenLabel: "bobby-cli",
+      apiTokenLabel: tokenLabel,
       scopes: minted.scopes,
       createdAt: new Date().toISOString(),
       expiresAt: minted.expiresAt,
