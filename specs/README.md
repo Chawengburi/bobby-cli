@@ -16,8 +16,9 @@ built, why it's shaped the way it is, and what's intentionally deferred.
 | 08 | [08-spec-shared-auth-core.md](./08-spec-shared-auth-core.md) | Extracting the auth/session-memory client into a reusable module for future tools |
 | 09 | [09-spec-agent-tool-schema.md](./09-spec-agent-tool-schema.md) | Tool-schema manifest so AI agents can call bobby-cli as typed tools — no shared MCP server |
 | 10 | [10-spec-credential-profiles.md](./10-spec-credential-profiles.md) | `--profile` override so one shared machine (openClaw on a cloud host) can dispatch to a different identity per invocation, e.g. one profile per Discord user |
+| 11 | [11-spec-claude-code-skill.md](./11-spec-claude-code-skill.md) | Claude Code skill that drives all memory ops through bobby-cli (first real consumer of the spec 09 manifest) — the dress rehearsal for openClaw's migration |
 
-**Read order:** 01 → 02 → 03 → 04 → 05 → 06 → 07 → 08 → 09 → 10
+**Read order:** 01 → 02 → 03 → 04 → 05 → 06 → 07 → 08 → 09 → 10 → 11
 
 ---
 
