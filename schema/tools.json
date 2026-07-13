@@ -11,6 +11,7 @@
         "properties": {
           "email": { "type": "string", "description": "Account email. Prefer passing via BOBBY_CLI_EMAIL env var instead of this field." },
           "password": { "type": "string", "description": "Account password. Prefer passing via BOBBY_CLI_PASSWORD env var instead of this field — never log or echo this value." },
+          "label": { "type": "string", "description": "Token label (default bobby-cli@<hostname>). Logging in again with the same label rotates that token instead of minting a new one. Multi-profile callers should pass one label per end user, e.g. discord-dm-<id>." },
           "profile": { "type": "string", "description": "Named credential profile to write instead of the default ~/.bobby-cli/credentials.json (see specs/10-spec-credential-profiles.md). Only letters, numbers, \"-\", \"_\". Omit for the default single-machine identity." }
         },
         "required": ["email", "password"]

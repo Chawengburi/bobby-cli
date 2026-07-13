@@ -118,6 +118,10 @@ POST /auth/token   { email, password }             -> short-lived session token
 POST /auth/tokens  { label, resource, scopes }      -> sm_live_... API token (shown once, then cached)
 ```
 
+Logging in again with the same token label (default `bobby-cli@<hostname>`, override with `--label`)
+rotates the existing token instead of minting another one, so repeated logins don't accumulate
+tokens. Tokens with other labels — other machines, the web UI, other users' profiles — are never touched.
+
 There is no OAuth device-code flow yet — it's a deliberate v1 scope cut, not an oversight, and is expected to land in a later version for headless/remote-agent use cases that can't do an interactive password prompt at all.
 
 Memory operations (`show`, `recall`, `remember`, `append`, `forget`) all call session-memory's `/mcp` endpoint directly as a JSON-RPC client, using the cached API token as a Bearer credential.

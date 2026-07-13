@@ -12,6 +12,8 @@ import {
   saveCredentials,
   login,
   mintApiToken,
+  listApiTokens,
+  rotateApiToken,
   AuthCenterError,
 } from "../core/index.js";
 import { printError, printInfo, printJson, printSuccess } from "../output.js";
@@ -24,6 +26,7 @@ const PROFILE_OPTION = [
 interface LoginOptions {
   email?: string;
   password?: string;
+  label?: string;
   json?: boolean;
   profile?: string;
 }
@@ -73,9 +76,23 @@ async function runLogin(opts: LoginOptions): Promise<void> {
     const { email, password } = await resolveEmailPassword(opts);
 
     const { sessionToken, user } = await login(authCenterUrl, email, password);
-    // Per-install label so a second machine's login doesn't collide with this one's token.
-    const tokenLabel = `bobby-cli@${hostname()}`;
-    const minted = await mintApiToken(authCenterUrl, sessionToken, tokenLabel);
+    // Per-install label so a second machine's login doesn't collide with this
+    // one's token. --label overrides it so a multi-profile caller (openClaw)
+    // can keep one label per end user (e.g. discord-dm-<id>) instead of every
+    // profile on the machine sharing bobby-cli@<host>.
+    const tokenLabel = opts.label ?? `bobby-cli@${hostname()}`;
+
+    // Rotate-by-label: logging in again where an active token with this exact
+    // label already exists replaces that token instead of minting another one,
+    // so repeated logins don't pile up tokens (GitHub PAT-style semantics).
+    // Only the newest same-label token is rotated; differently-labeled tokens
+    // (other machines/clients) are never touched.
+    const sameLabel = (await listApiTokens(authCenterUrl, sessionToken))
+      .filter((t) => t.label === tokenLabel)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const minted = sameLabel.length > 0
+      ? await rotateApiToken(authCenterUrl, sessionToken, sameLabel[0].id)
+      : await mintApiToken(authCenterUrl, sessionToken, tokenLabel);
 
     saveCredentials(
       {
@@ -193,6 +210,10 @@ export function registerAuthCommand(program: Command): void {
     .description("Log in to auth-center and mint a session-memory API token")
     .option("--email <email>", "email (skips the prompt)")
     .option("--password <password>", "password (skips the prompt)")
+    .option(
+      "--label <label>",
+      "token label; logging in again with the same label rotates that token instead of minting a new one (default: bobby-cli@<hostname>)"
+    )
     .option(...PROFILE_OPTION)
     .option("--json", "machine-readable output")
     .action(runLogin);

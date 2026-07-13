@@ -67,18 +67,18 @@ this risk still applies exactly as described above for any bobby-cli login
 performed as a machine/service account rather than a human/Discord-user
 account.
 
-**New, smaller consideration this introduces:** since `revokeExisting:
-false` is now the default for user-principal logins, running
-`bobby-cli auth login` **twice on the same machine** (same
-`bobby-cli@<hostname>` label) no longer replaces the earlier token — it
-mints an additional one alongside it, both active, both labeled identically.
-Previously this was harmless because the old token was auto-revoked; now
-it's a minor token-accumulation question (not a security issue — the old
-token still worked before this fix too, just as the *only* active one) worth
-a follow-up: should `auth login` reuse/rotate a token with a matching label
-instead of always minting a new one? Not decided here — flagging as a
-follow-up to [07](./07-spec-roadmap-open-questions.md), not fixed in this
-change.
+**Token accumulation — resolved by rotate-by-label (2026-07-13):** since
+`revokeExisting: false` became the default for user-principal logins,
+running `bobby-cli auth login` twice on the same machine used to mint an
+additional identically-labeled token alongside the old one. `auth login`
+now first lists the account's active session-memory tokens
+(`GET /auth/tokens`) and, if one with the exact same label exists, rotates
+it (`POST /auth/tokens/:id/rotate`) instead of minting — so re-login
+replaces the token, GitHub-PAT style, and never touches tokens with other
+labels. The label defaults to `bobby-cli@<hostname>` and can be overridden
+with `--label` (openClaw passes `discord-dm-<id>` per Discord user so each
+profile rotates only its own token). Implemented entirely client-side with
+existing auth-center endpoints; see [03](./03-spec-commands.md).
 
 ## Credential storage
 

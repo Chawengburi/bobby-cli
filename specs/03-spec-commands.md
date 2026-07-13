@@ -23,7 +23,16 @@ Logs in to `auth-center` and mints a session-memory API token.
 |---|---|
 | `--email <email>` | Skip the email prompt |
 | `--password <password>` | Skip the password prompt |
+| `--label <label>` | Token label (default `bobby-cli@<hostname>`). Lets a multi-profile caller (openClaw) keep one label per end user, e.g. `discord-dm-<id>` |
 | `--json` | Machine-readable output |
+
+**Rotate-by-label (2026-07-13):** if an active token with the exact same label
+already exists, login rotates that token (`POST /auth/tokens/:id/rotate`)
+instead of minting another one — repeated logins on the same machine replace
+the token rather than piling up new ones (GitHub PAT-style semantics). Only
+the newest same-label token is rotated; tokens with other labels (other
+machines/clients) are never touched. With no same-label token, login mints a
+new one exactly as before.
 
 Credential resolution order: `--email`/`--password` flags → `BOBBY_CLI_EMAIL`/
 `BOBBY_CLI_PASSWORD` env vars → interactive prompt (password masked). If

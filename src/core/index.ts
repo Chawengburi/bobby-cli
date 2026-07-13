@@ -11,8 +11,8 @@ export {
 } from "./config.js";
 export type { Credentials } from "./config.js";
 
-export { login, mintApiToken, AuthCenterError } from "./authClient.js";
-export type { AuthCenterUser, LoginResult, MintedApiToken } from "./authClient.js";
+export { login, mintApiToken, listApiTokens, rotateApiToken, AuthCenterError } from "./authClient.js";
+export type { AuthCenterUser, LoginResult, MintedApiToken, ApiTokenSummary } from "./authClient.js";
 
 export { mcpToolCall, McpError } from "./mcpClient.js";
 
