@@ -1,9 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 const CONFIG_DIR = join(homedir(), ".bobby-cli");
 const CREDENTIALS_PATH = join(CONFIG_DIR, "credentials.json");
+const DEFAULT_PROFILES_DIR = join(CONFIG_DIR, "profiles");
+const PROFILE_NAME_RE = /^[a-zA-Z0-9_-]+$/;
 
 // bobby-cli talks to ONE fixed organization backend, not an arbitrary
 // user-supplied one — it's published to npm for easy installation, not as a
@@ -31,35 +33,55 @@ export interface Credentials {
   expiresAt: string | null;
 }
 
-export function credentialsExist(): boolean {
-  return existsSync(CREDENTIALS_PATH);
+// Selecting a named profile is opt-in per call (spec 10). Omitting `profile`
+// entirely must reproduce today's exact single-file behavior — this is what
+// lets a shared machine (openClaw) dispatch to one identity per Discord user
+// via --profile, while a human/coding-agent caller on their own machine never
+// has to know this exists. The caller supplies only a short name, never a
+// path — bobby-cli owns the directory, so path traversal is closed by
+// construction (rejecting anything the regex doesn't allow) rather than by
+// validating an arbitrary caller-supplied path.
+export function resolveCredentialsPath(profile?: string): string {
+  if (!profile) return CREDENTIALS_PATH;
+  if (!PROFILE_NAME_RE.test(profile)) {
+    throw new Error(`Invalid profile name: ${profile}. Use only letters, numbers, "-", "_".`);
+  }
+  const profilesDir = process.env.BOBBY_CLI_PROFILES_DIR ?? DEFAULT_PROFILES_DIR;
+  return join(profilesDir, `${profile}.json`);
 }
 
-export function loadCredentials(): Credentials | null {
-  if (!existsSync(CREDENTIALS_PATH)) return null;
+export function credentialsExist(profile?: string): boolean {
+  return existsSync(resolveCredentialsPath(profile));
+}
+
+export function loadCredentials(profile?: string): Credentials | null {
+  const path = resolveCredentialsPath(profile);
+  if (!existsSync(path)) return null;
   try {
-    return JSON.parse(readFileSync(CREDENTIALS_PATH, "utf-8")) as Credentials;
+    return JSON.parse(readFileSync(path, "utf-8")) as Credentials;
   } catch {
     return null;
   }
 }
 
-export function requireCredentials(): Credentials {
-  const creds = loadCredentials();
+export function requireCredentials(profile?: string): Credentials {
+  const creds = loadCredentials(profile);
   if (!creds) {
     throw new CliAuthError("Not logged in. Run `bobby-cli auth login` first.");
   }
   return creds;
 }
 
-export function saveCredentials(creds: Credentials): void {
-  mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
-  writeFileSync(CREDENTIALS_PATH, JSON.stringify(creds, null, 2), { mode: 0o600 });
+export function saveCredentials(creds: Credentials, profile?: string): void {
+  const path = resolveCredentialsPath(profile);
+  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  writeFileSync(path, JSON.stringify(creds, null, 2), { mode: 0o600 });
 }
 
-export function deleteCredentials(): boolean {
-  if (!existsSync(CREDENTIALS_PATH)) return false;
-  rmSync(CREDENTIALS_PATH);
+export function deleteCredentials(profile?: string): boolean {
+  const path = resolveCredentialsPath(profile);
+  if (!existsSync(path)) return false;
+  rmSync(path);
   return true;
 }
 

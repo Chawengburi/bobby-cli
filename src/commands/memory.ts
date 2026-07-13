@@ -4,14 +4,21 @@ import { printError, printJson } from "../output.js";
 
 interface BaseOpts {
   json?: boolean;
+  profile?: string;
 }
+
+const PROFILE_OPTION = [
+  "--profile <name>",
+  "use a named credential profile instead of the default (see BOBBY_CLI_PROFILES_DIR)",
+] as const;
 
 async function callTool(
   toolName: string,
-  args: Record<string, unknown>
+  args: Record<string, unknown>,
+  profile?: string
 ): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
   try {
-    const creds = requireCredentials();
+    const creds = requireCredentials(profile);
     const sessionMemoryUrl = resolveSessionMemoryUrl(creds.sessionMemoryUrl);
     const text = await mcpToolCall(sessionMemoryUrl, creds.apiToken, toolName, args);
     return { ok: true, text };
@@ -48,6 +55,16 @@ function parseTags(tags?: string): string[] | undefined {
   return tags.split(",").map((t) => t.trim()).filter(Boolean);
 }
 
+// Filter args for show/recall. Always sends BOTH `tag` (single) and `tags`
+// (array): servers without multi-tag support silently strip unknown params
+// (zod strip mode — verified against the deployed Worker), so sending only
+// `tags` there would return UNfiltered results with no error. With both, an
+// old server degrades to first-tag filtering; a new server ORs the full set.
+function tagFilterArgs(tags?: string[]): Record<string, unknown> {
+  if (!tags || tags.length === 0) return {};
+  return { tag: tags[0], tags };
+}
+
 export function registerMemoryCommand(program: Command): void {
   const memory = program.command("memory").description("Read and write session-memory");
 
@@ -55,14 +72,18 @@ export function registerMemoryCommand(program: Command): void {
     .command("show")
     .description("List recent memories (chronological, with tag filtering)")
     .option("-n, --limit <n>", "number of entries", "10")
-    .option("--tags <tags>", "comma-separated tags to filter by (single tag)")
+    .option("--tags <tags>", "comma-separated tags to filter by (matches any)")
+    .option(...PROFILE_OPTION)
     .option("--json", "machine-readable output")
     .action(async (opts: BaseOpts & { limit: string; tags?: string }) => {
-      const tags = parseTags(opts.tags);
-      const result = await callTool("list_recent", {
-        n: parseInt(opts.limit, 10),
-        ...(tags?.[0] ? { tag: tags[0] } : {}),
-      });
+      const result = await callTool(
+        "list_recent",
+        {
+          n: parseInt(opts.limit, 10),
+          ...tagFilterArgs(parseTags(opts.tags)),
+        },
+        opts.profile
+      );
       emit(result, opts.json);
     });
 
@@ -70,15 +91,19 @@ export function registerMemoryCommand(program: Command): void {
     .command("recall <query>")
     .description("Semantically search memories")
     .option("-n, --limit <n>", "number of results", "5")
-    .option("--tags <tags>", "comma-separated tags to filter by (single tag)")
+    .option("--tags <tags>", "comma-separated tags to filter by (matches any)")
+    .option(...PROFILE_OPTION)
     .option("--json", "machine-readable output")
     .action(async (query: string, opts: BaseOpts & { limit: string; tags?: string }) => {
-      const tags = parseTags(opts.tags);
-      const result = await callTool("recall", {
-        query,
-        topK: parseInt(opts.limit, 10),
-        ...(tags?.[0] ? { tag: tags[0] } : {}),
-      });
+      const result = await callTool(
+        "recall",
+        {
+          query,
+          topK: parseInt(opts.limit, 10),
+          ...tagFilterArgs(parseTags(opts.tags)),
+        },
+        opts.profile
+      );
       emit(result, opts.json);
     });
 
@@ -86,6 +111,7 @@ export function registerMemoryCommand(program: Command): void {
     .command("remember [text]")
     .description("Save a memory (reads stdin if no text given)")
     .option("--tags <tags>", "comma-separated tags")
+    .option(...PROFILE_OPTION)
     .option("--json", "machine-readable output")
     .action(async (text: string | undefined, opts: BaseOpts & { tags?: string }) => {
       const content = text ?? (await readStdin());
@@ -93,29 +119,35 @@ export function registerMemoryCommand(program: Command): void {
         emit({ ok: false, error: "No content given (pass text or pipe via stdin)." }, opts.json);
         return;
       }
-      const result = await callTool("remember", {
-        content,
-        tags: parseTags(opts.tags) ?? [],
-        source: "bobby-cli",
-      });
+      const result = await callTool(
+        "remember",
+        {
+          content,
+          tags: parseTags(opts.tags) ?? [],
+          source: "bobby-cli",
+        },
+        opts.profile
+      );
       emit(result, opts.json);
     });
 
   memory
     .command("append <id> <text>")
     .description("Append additional context to an existing entry")
+    .option(...PROFILE_OPTION)
     .option("--json", "machine-readable output")
     .action(async (id: string, text: string, opts: BaseOpts) => {
-      const result = await callTool("append", { id, addition: text });
+      const result = await callTool("append", { id, addition: text }, opts.profile);
       emit(result, opts.json);
     });
 
   memory
     .command("forget <id>")
     .description("Delete a memory entry by ID")
+    .option(...PROFILE_OPTION)
     .option("--json", "machine-readable output")
     .action(async (id: string, opts: BaseOpts) => {
-      const result = await callTool("forget", { id });
+      const result = await callTool("forget", { id }, opts.profile);
       emit(result, opts.json);
     });
 }

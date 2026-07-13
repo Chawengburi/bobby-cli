@@ -8,6 +8,7 @@ import {
   requireCredentials,
   resolveAuthCenterUrl,
   resolveSessionMemoryUrl,
+  resolveCredentialsPath,
   saveCredentials,
   login,
   mintApiToken,
@@ -15,10 +16,16 @@ import {
 } from "../core/index.js";
 import { printError, printInfo, printJson, printSuccess } from "../output.js";
 
+const PROFILE_OPTION = [
+  "--profile <name>",
+  "use a named credential profile instead of the default (see BOBBY_CLI_PROFILES_DIR)",
+] as const;
+
 interface LoginOptions {
   email?: string;
   password?: string;
   json?: boolean;
+  profile?: string;
 }
 
 async function resolveEmailPassword(
@@ -60,7 +67,7 @@ async function runLogin(opts: LoginOptions): Promise<void> {
     // Fixed org backend — not user-configurable per install. See config.ts:
     // env vars / .env only exist to point *this* machine at a different
     // deployment for local dev/testing, not as an end-user-facing option.
-    const stored = loadCredentials();
+    const stored = loadCredentials(opts.profile);
     const authCenterUrl = resolveAuthCenterUrl(stored?.authCenterUrl);
     const sessionMemoryUrl = resolveSessionMemoryUrl(stored?.sessionMemoryUrl);
     const { email, password } = await resolveEmailPassword(opts);
@@ -70,36 +77,53 @@ async function runLogin(opts: LoginOptions): Promise<void> {
     const tokenLabel = `bobby-cli@${hostname()}`;
     const minted = await mintApiToken(authCenterUrl, sessionToken, tokenLabel);
 
-    saveCredentials({
-      authCenterUrl,
-      sessionMemoryUrl,
-      email: user.email,
-      tenantId: user.tenantId,
-      apiToken: minted.rawToken,
-      apiTokenId: minted.tokenId,
-      apiTokenLabel: tokenLabel,
-      scopes: minted.scopes,
-      createdAt: new Date().toISOString(),
-      expiresAt: minted.expiresAt,
-    });
+    saveCredentials(
+      {
+        authCenterUrl,
+        sessionMemoryUrl,
+        email: user.email,
+        tenantId: user.tenantId,
+        apiToken: minted.rawToken,
+        apiTokenId: minted.tokenId,
+        apiTokenLabel: tokenLabel,
+        scopes: minted.scopes,
+        createdAt: new Date().toISOString(),
+        expiresAt: minted.expiresAt,
+      },
+      opts.profile
+    );
 
     if (opts.json) {
       printJson({ ok: true, email: user.email, tenantId: user.tenantId });
     } else {
-      printSuccess(`Logged in as ${user.email}. Credentials saved to ~/.bobby-cli/credentials.json`);
+      printSuccess(`Logged in as ${user.email}. Credentials saved to ${resolveCredentialsPath(opts.profile)}`);
     }
   } catch (err) {
     const message = err instanceof AuthCenterError ? err.message : (err as Error).message;
     if (opts.json) {
       printJson({ ok: false, error: message });
+      process.exitCode = 1;
     } else {
       printError(message);
     }
   }
 }
 
-function runShow(opts: { json?: boolean }): void {
-  const creds = loadCredentials();
+function runShow(opts: { json?: boolean; profile?: string }): void {
+  let creds;
+  try {
+    creds = loadCredentials(opts.profile);
+  } catch (err) {
+    const message = (err as Error).message;
+    if (opts.json) {
+      printJson({ ok: false, error: message });
+      process.exitCode = 1;
+    } else {
+      printError(message);
+    }
+    return;
+  }
+
   if (!creds) {
     if (opts.json) {
       printJson({ loggedIn: false });
@@ -135,10 +159,23 @@ function runShow(opts: { json?: boolean }): void {
   }
 }
 
-function runForget(opts: { json?: boolean }): void {
+function runForget(opts: { json?: boolean; profile?: string }): void {
   // Local-only delete for v1 — does not call DELETE /auth/tokens/:id on
   // auth-center to revoke server-side. See plan's open question #1.
-  const existed = deleteCredentials();
+  let existed: boolean;
+  try {
+    existed = deleteCredentials(opts.profile);
+  } catch (err) {
+    const message = (err as Error).message;
+    if (opts.json) {
+      printJson({ ok: false, error: message });
+      process.exitCode = 1;
+    } else {
+      printError(message);
+    }
+    return;
+  }
+
   if (opts.json) {
     printJson({ ok: true, deleted: existed });
   } else if (existed) {
@@ -156,18 +193,21 @@ export function registerAuthCommand(program: Command): void {
     .description("Log in to auth-center and mint a session-memory API token")
     .option("--email <email>", "email (skips the prompt)")
     .option("--password <password>", "password (skips the prompt)")
+    .option(...PROFILE_OPTION)
     .option("--json", "machine-readable output")
     .action(runLogin);
 
   auth
     .command("show")
     .description("Show the current login (never prints the raw token)")
+    .option(...PROFILE_OPTION)
     .option("--json", "machine-readable output")
     .action(runShow);
 
   auth
     .command("forget")
     .description("Delete the local credentials file")
+    .option(...PROFILE_OPTION)
     .option("--json", "machine-readable output")
     .action(runForget);
 }

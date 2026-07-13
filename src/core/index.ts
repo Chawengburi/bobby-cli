@@ -6,6 +6,7 @@ export {
   deleteCredentials,
   resolveAuthCenterUrl,
   resolveSessionMemoryUrl,
+  resolveCredentialsPath,
   CliAuthError,
 } from "./config.js";
 export type { Credentials } from "./config.js";

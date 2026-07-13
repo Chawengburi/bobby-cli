@@ -99,14 +99,20 @@ List recent memories, chronological, with optional tag filtering.
 | Flag | Default | Description |
 |---|---|---|
 | `-n, --limit <n>` | `10` | Number of entries |
-| `--tags <tags>` | — | Single tag to filter by (comma-separated input accepted, only the first tag is used — see note below) |
+| `--tags <tags>` | — | Comma-separated tags to filter by — matches entries having ANY of them (OR) |
 | `--json` | — | Machine-readable output |
 
 ```bash
 bobby-cli memory show -n 20 --tags work
+bobby-cli memory show -n 20 --tags work,bobby-cli
 ```
 
-Calls the `list_recent` MCP tool with `{ n, tag? }`.
+Calls the `list_recent` MCP tool with `{ n, tag?, tags? }` — both `tag`
+(first tag) and `tags` (full list) are always sent together: servers
+predating multi-tag support silently strip the unknown `tags` param (zod
+strip mode), so they degrade to first-tag filtering instead of returning
+unfiltered results. Servers with multi-tag support merge both into one OR
+filter.
 
 ### `bobby-cli memory recall <query>`
 
@@ -115,15 +121,17 @@ Semantically search memories.
 | Flag | Default | Description |
 |---|---|---|
 | `-n, --limit <n>` | `5` | Number of results |
-| `--tags <tags>` | — | Single tag to filter by |
+| `--tags <tags>` | — | Comma-separated tags to filter by — matches entries having ANY of them (OR) |
 | `--json` | — | Machine-readable output |
 
 ```bash
 bobby-cli memory recall "last week's decision" -n 10
 bobby-cli memory recall "architecture" --tags engineering
+bobby-cli memory recall "architecture" --tags engineering,auth-center
 ```
 
-Calls the `recall` MCP tool with `{ query, topK, tag? }`.
+Calls the `recall` MCP tool with `{ query, topK, tag?, tags? }` — same
+dual-param contract as `memory show` above.
 
 ### `bobby-cli memory remember [text]`
 
@@ -193,5 +201,6 @@ implementation, not a documentation choice — see
 
 Set via `process.exitCode` (not `process.exit()`), by `printError` (human
 mode) and by `emit()` in `src/commands/memory.ts` when `--json` output has
-`ok: false`. `auth login`'s JSON-mode failure path does not currently set a
-non-zero exit code — see [07](./07-spec-roadmap-open-questions.md).
+`ok: false`. `auth login`, `auth show`, and `auth forget`'s JSON-mode failure
+paths also set it directly (see [07](./07-spec-roadmap-open-questions.md) §5,
+fixed 2026-07-09).

@@ -44,7 +44,7 @@ JSON-Schema `input_schema` for parameters):
         "properties": {
           "query": { "type": "string", "description": "Search text" },
           "limit": { "type": "integer", "default": 5, "description": "Max results" },
-          "tags": { "type": "string", "description": "Single tag to filter by" }
+          "tags": { "type": "string", "description": "Comma-separated tags to filter by — matches any (OR)" }
         },
         "required": ["query"]
       },

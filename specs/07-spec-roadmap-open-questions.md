@@ -101,25 +101,33 @@ unscoped vs. `@chawengburi/bobby-cli` scoped. Scoped publishes as private by
 default (`npm publish --access public` needed) but better signals "internal
 tool" per `DEVELOPMENT.md` Part 3 step 4. Not re-decided here — still open.
 
-### 4. `--tags` inconsistency in `memory show`/`memory recall`
+### 4. `--tags` inconsistency in `memory show`/`memory recall` — fixed (2026-07-13)
 
-Documented as a real bug in [03-spec-commands.md](./03-spec-commands.md):
-the flag reads as multi-tag but only the first parsed tag is ever sent to
-`list_recent`/`recall`. **Question:** should this be (a) fixed to send
-multiple tags once session-memory's tool interface supports it, or (b) the
-flag/help text corrected to say "single tag" to match current behavior?
-This depends on session-memory's `recall`/`list_recent` tool signatures,
-which is out of bobby-cli's control — see
-[session-memory/specs/07-spec-visibility.md](../../session-memory/specs/07-spec-visibility.md).
+Was: the flag read as multi-tag but only the first parsed tag was ever sent
+to `list_recent`/`recall`, because those tools only accepted a single `tag`
+string. Fixed on both sides — resolution (a) from the original question:
 
-### 5. Exit code gap in `auth login --json`
+- session-memory's `recall`/`list_recent` now also accept `tags: string[]`,
+  OR semantics (matches entries having any of the tags — same any-of
+  behavior as the REST `GET /api/entries?tags=` filter). The single `tag`
+  param remains supported; when both are sent they merge into one OR set.
+- bobby-cli's `show`/`recall` now always send **both** `tag` (first tag)
+  and `tags` (full list). Verified empirically that pre-fix servers
+  silently strip unknown params (zod strip mode) — sending only `tags`
+  would have degraded to *unfiltered* results with no error, so the
+  dual-param contract makes old servers degrade to the previous first-tag
+  behavior instead. See [03-spec-commands.md](./03-spec-commands.md).
 
-Documented in [03-spec-commands.md](./03-spec-commands.md) § Exit codes:
-`runLogin`'s JSON failure branch (`printJson({ ok: false, error })`) doesn't
-set `process.exitCode = 1`, unlike every other command's failure path. A
-script checking `bobby-cli auth login --json` for success has to parse the
-JSON body instead of trusting `$?`. Straightforward fix, flagged here rather
-than silently patched since it changes observable exit-code behavior.
+### 5. Exit code gap in `auth login --json` — fixed (2026-07-09)
+
+Was: `runLogin`'s JSON failure branch (`printJson({ ok: false, error })`)
+didn't set `process.exitCode = 1`, unlike every other command's failure
+path. Fixed while implementing
+[10-spec-credential-profiles.md](./10-spec-credential-profiles.md) (the edit
+touched this exact branch to thread `--profile` through) — see that spec's
+"Implementation note" for why this wasn't kept as a silent side effect.
+`bobby-cli auth login --json` on failure now sets a non-zero exit code like
+every other command.
 
 ## Considered and not currently planned
 

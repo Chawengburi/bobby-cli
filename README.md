@@ -46,6 +46,7 @@ bobby-cli memory show
 bobby-cli memory show -n 20 --tags work
 bobby-cli memory recall "last week's decision" -n 10
 bobby-cli memory recall "architecture" --tags engineering
+bobby-cli memory recall "architecture" --tags engineering,auth-center   # multiple tags: matches any (OR)
 ```
 
 Every command accepts `--json` for machine-readable output — this is what agents/scripts should parse, not the human-formatted text.

@@ -37,33 +37,48 @@ first machine's token in `auth show`'s output or in `auth-center`'s token
 list. It does **not** prevent the collision described below; it only makes
 the resulting symptom attributable to a specific machine after the fact.
 
-## Known risk: one active token per `(principal, resource)`
+## Former risk: one active token per `(principal, resource)` — fixed for user principals (confirmed shipped 2026-07-09)
 
-`auth-center` currently allows only **one active `sm_live_...` token per
-`(principal_id, resource)`** — minting a new one revokes the previous one
+`auth-center` used to allow only **one active `sm_live_...` token per
+`(principal_id, resource)`** — minting a new one revoked the previous one
 for that same principal+resource, silently, with no confirmation prompt
-anywhere in the chain.
+anywhere in the chain. That was the failure documented in
+[session-memory/specs/09-spec-discord-actor.md § REJECTED (2026-07-09)](../../session-memory/specs/09-spec-discord-actor.md).
 
-This means: **running `bobby-cli auth login` as a given user can silently
-revoke a different active session for that same user** — e.g. a web-UI
-"create new key" action, or (per the incident this was first noticed from)
-openClaw's DM session token — because they resolve to the same
-`(principal_id, resource)` pair under today's rule.
+**Confirmed shipped, not just planned** — verified directly against
+`auth-center`'s code, not just its tickets: migration
+`005-multi-active-user-token.sql` replaces the old global unique index with
+one scoped to `WHERE status='active' AND principal_type='machine'`, and
+`createApiToken()` in `src/auth.ts` takes a `revokeExisting` flag that
+`POST /auth/tokens` (the endpoint `bobby-cli auth login` calls) and the web
+UI's token-creation paths already call with `revokeExisting: false`. See
+[auth-center/tickets/03-personal-api-token.md § Amended (2026-07-09)](../../auth-center/tickets/03-personal-api-token.md)
+for the decision record.
 
-This is not hypothetical — it is exactly the failure documented in
-[session-memory/specs/09-spec-discord-actor.md § REJECTED (2026-07-09)](../../session-memory/specs/09-spec-discord-actor.md)
-and [auth-center/tickets/03-personal-api-token.md § Amended (2026-07-09)](../../auth-center/tickets/03-personal-api-token.md).
-The fix is scoped as an `auth-center` schema/behavior change (allow multiple
-simultaneous named active tokens per **user** principal, GitHub/GitLab-PAT
-style; the existing single-active-token rule stays as-is for **machine**
-principals) — not something bobby-cli can work around unilaterally. Tracked
-in [07](./07-spec-roadmap-open-questions.md).
+**Current behavior:** for **user** principals (which includes every Discord
+user minted via [10-spec-credential-profiles.md](./10-spec-credential-profiles.md)'s
+`--profile`), multiple simultaneously-active, independently-labeled tokens
+per `(principal_id, resource)` are now supported, GitHub/GitLab-PAT style —
+running `bobby-cli auth login` no longer revokes a web-UI session, an
+openClaw DM token, or another machine's `bobby-cli` login for the same
+account. **Machine principals are unchanged** — still hard-capped at one
+active token per resource, using the old rotate-on-create semantics — so
+this risk still applies exactly as described above for any bobby-cli login
+performed as a machine/service account rather than a human/Discord-user
+account.
 
-**Until that lands:** treat `bobby-cli auth login` as potentially disruptive
-to any other active session for the same account, not as a purely additive,
-side-effect-free action. This is worth surfacing to whoever runs it — see
-the open question in [07](./07-spec-roadmap-open-questions.md) about whether
-`auth login` should warn about this explicitly before proceeding.
+**New, smaller consideration this introduces:** since `revokeExisting:
+false` is now the default for user-principal logins, running
+`bobby-cli auth login` **twice on the same machine** (same
+`bobby-cli@<hostname>` label) no longer replaces the earlier token — it
+mints an additional one alongside it, both active, both labeled identically.
+Previously this was harmless because the old token was auto-revoked; now
+it's a minor token-accumulation question (not a security issue — the old
+token still worked before this fix too, just as the *only* active one) worth
+a follow-up: should `auth login` reuse/rotate a token with a matching label
+instead of always minting a new one? Not decided here — flagging as a
+follow-up to [07](./07-spec-roadmap-open-questions.md), not fixed in this
+change.
 
 ## Credential storage
 
@@ -130,4 +145,4 @@ auth-specific terms:
 | MCP static config can't carry a per-call/per-user token | **Solved** by not being an MCP client — each invocation reads the credential file fresh |
 | Raw token reaching an agent's context window / stdout | **Solved** — never printed, see [06](./06-spec-output-conventions.md) |
 | Sidecar-style cross-request race conditions | **Solved** — no shared mutable state between invocations |
-| One-active-token-per-principal silently revoking other sessions | **Not solved by bobby-cli** — depends on the `auth-center` multi-token migration; see above |
+| One-active-token-per-principal silently revoking other sessions | **Fixed in `auth-center`, not bobby-cli** (confirmed shipped 2026-07-09) — for **user** principals only; still applies to **machine** principals; see above |

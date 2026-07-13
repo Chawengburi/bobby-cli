@@ -35,10 +35,10 @@ parties (see [05](./05-spec-config-environment.md)).
 
 ### Memory
 
-- FR-5: List recent memories, optionally filtered by a single tag, with a
-  configurable result count.
+- FR-5: List recent memories, optionally filtered by one or more tags
+  (matches any — OR), with a configurable result count.
 - FR-6: Semantically search memories by query text, optionally filtered by
-  tag, with a configurable result count.
+  one or more tags (matches any — OR), with a configurable result count.
 - FR-7: Save a new memory from an argument or from stdin (for piping file
   contents/command output in), with optional comma-separated tags.
 - FR-8: Append additional context to an existing memory entry by ID.

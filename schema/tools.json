@@ -10,7 +10,8 @@
         "type": "object",
         "properties": {
           "email": { "type": "string", "description": "Account email. Prefer passing via BOBBY_CLI_EMAIL env var instead of this field." },
-          "password": { "type": "string", "description": "Account password. Prefer passing via BOBBY_CLI_PASSWORD env var instead of this field — never log or echo this value." }
+          "password": { "type": "string", "description": "Account password. Prefer passing via BOBBY_CLI_PASSWORD env var instead of this field — never log or echo this value." },
+          "profile": { "type": "string", "description": "Named credential profile to write instead of the default ~/.bobby-cli/credentials.json (see specs/10-spec-credential-profiles.md). Only letters, numbers, \"-\", \"_\". Omit for the default single-machine identity." }
         },
         "required": ["email", "password"]
       },
@@ -35,7 +36,7 @@
           }
         ]
       },
-      "invocation": "BOBBY_CLI_EMAIL={email} BOBBY_CLI_PASSWORD={password} bobby-cli auth login --json"
+      "invocation": "BOBBY_CLI_EMAIL={email} BOBBY_CLI_PASSWORD={password} bobby-cli auth login --profile {profile} --json"
     },
     {
       "name": "auth_show",
@@ -43,7 +44,9 @@
       "command": ["auth", "show"],
       "input_schema": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "profile": { "type": "string", "description": "Named credential profile to read instead of the default (see specs/10-spec-credential-profiles.md). Omit for the default single-machine identity." }
+        }
       },
       "output_schema": {
         "oneOf": [
@@ -72,7 +75,7 @@
           }
         ]
       },
-      "invocation": "bobby-cli auth show --json"
+      "invocation": "bobby-cli auth show --profile {profile} --json"
     },
     {
       "name": "auth_forget",
@@ -80,7 +83,9 @@
       "command": ["auth", "forget"],
       "input_schema": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "profile": { "type": "string", "description": "Named credential profile to delete instead of the default (see specs/10-spec-credential-profiles.md). Omit for the default single-machine identity." }
+        }
       },
       "output_schema": {
         "type": "object",
@@ -90,17 +95,18 @@
         },
         "required": ["ok", "deleted"]
       },
-      "invocation": "bobby-cli auth forget --json"
+      "invocation": "bobby-cli auth forget --profile {profile} --json"
     },
     {
       "name": "memory_show",
-      "description": "List recent memories, chronological, optionally filtered by a single tag. Requires a prior auth_login.",
+      "description": "List recent memories, chronological, optionally filtered by tags (matches any — OR). Requires a prior auth_login.",
       "command": ["memory", "show"],
       "input_schema": {
         "type": "object",
         "properties": {
           "limit": { "type": "integer", "default": 10, "description": "Number of entries to return" },
-          "tags": { "type": "string", "description": "Single tag to filter by (only the first tag is honored even if comma-separated — see specs/03-spec-commands.md)" }
+          "tags": { "type": "string", "description": "Comma-separated tags to filter by — matches entries having any of them (OR, see specs/03-spec-commands.md)" },
+          "profile": { "type": "string", "description": "Named credential profile to read instead of the default (see specs/10-spec-credential-profiles.md). Omit for the default single-machine identity." }
         }
       },
       "output_schema": {
@@ -109,18 +115,19 @@
           { "type": "object", "properties": { "ok": { "const": false }, "error": { "type": "string" } }, "required": ["ok", "error"] }
         ]
       },
-      "invocation": "bobby-cli memory show -n {limit} --tags {tags} --json"
+      "invocation": "bobby-cli memory show -n {limit} --tags {tags} --profile {profile} --json"
     },
     {
       "name": "memory_recall",
-      "description": "Semantically search saved memories by query text, optionally filtered by a single tag. Requires a prior auth_login.",
+      "description": "Semantically search saved memories by query text, optionally filtered by tags (matches any — OR). Requires a prior auth_login.",
       "command": ["memory", "recall"],
       "input_schema": {
         "type": "object",
         "properties": {
           "query": { "type": "string", "description": "Search text" },
           "limit": { "type": "integer", "default": 5, "description": "Number of results to return" },
-          "tags": { "type": "string", "description": "Single tag to filter by" }
+          "tags": { "type": "string", "description": "Comma-separated tags to filter by — matches entries having any of them (OR)" },
+          "profile": { "type": "string", "description": "Named credential profile to read instead of the default (see specs/10-spec-credential-profiles.md). Omit for the default single-machine identity." }
         },
         "required": ["query"]
       },
@@ -130,7 +137,7 @@
           { "type": "object", "properties": { "ok": { "const": false }, "error": { "type": "string" } }, "required": ["ok", "error"] }
         ]
       },
-      "invocation": "bobby-cli memory recall {query} -n {limit} --tags {tags} --json"
+      "invocation": "bobby-cli memory recall {query} -n {limit} --tags {tags} --profile {profile} --json"
     },
     {
       "name": "memory_remember",
@@ -140,7 +147,8 @@
         "type": "object",
         "properties": {
           "text": { "type": "string", "description": "Memory content to save. If omitted, provide content via stdin instead." },
-          "tags": { "type": "string", "description": "Comma-separated tags, e.g. \"work,idea\"" }
+          "tags": { "type": "string", "description": "Comma-separated tags, e.g. \"work,idea\"" },
+          "profile": { "type": "string", "description": "Named credential profile to write against instead of the default (see specs/10-spec-credential-profiles.md). Omit for the default single-machine identity." }
         }
       },
       "output_schema": {
@@ -149,7 +157,7 @@
           { "type": "object", "properties": { "ok": { "const": false }, "error": { "type": "string" } }, "required": ["ok", "error"] }
         ]
       },
-      "invocation": "bobby-cli memory remember {text} --tags {tags} --json"
+      "invocation": "bobby-cli memory remember {text} --tags {tags} --profile {profile} --json"
     },
     {
       "name": "memory_append",
@@ -159,7 +167,8 @@
         "type": "object",
         "properties": {
           "id": { "type": "string", "description": "ID of the memory entry to append to" },
-          "text": { "type": "string", "description": "Text to append" }
+          "text": { "type": "string", "description": "Text to append" },
+          "profile": { "type": "string", "description": "Named credential profile to write against instead of the default (see specs/10-spec-credential-profiles.md). Omit for the default single-machine identity." }
         },
         "required": ["id", "text"]
       },
@@ -169,7 +178,7 @@
           { "type": "object", "properties": { "ok": { "const": false }, "error": { "type": "string" } }, "required": ["ok", "error"] }
         ]
       },
-      "invocation": "bobby-cli memory append {id} {text} --json"
+      "invocation": "bobby-cli memory append {id} {text} --profile {profile} --json"
     },
     {
       "name": "memory_forget",
@@ -178,7 +187,8 @@
       "input_schema": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "description": "ID of the memory entry to delete" }
+          "id": { "type": "string", "description": "ID of the memory entry to delete" },
+          "profile": { "type": "string", "description": "Named credential profile to write against instead of the default (see specs/10-spec-credential-profiles.md). Omit for the default single-machine identity." }
         },
         "required": ["id"]
       },
@@ -188,7 +198,7 @@
           { "type": "object", "properties": { "ok": { "const": false }, "error": { "type": "string" } }, "required": ["ok", "error"] }
         ]
       },
-      "invocation": "bobby-cli memory forget {id} --json"
+      "invocation": "bobby-cli memory forget {id} --profile {profile} --json"
     }
   ]
 }
