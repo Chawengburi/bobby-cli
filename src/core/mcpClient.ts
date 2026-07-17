@@ -19,6 +19,7 @@ interface JsonRpcResponse {
 }
 
 import { describeNetworkError } from "./networkError.js";
+import { VERSION } from "../version.js";
 
 export class McpError extends Error {}
 
@@ -70,7 +71,7 @@ export async function mcpToolCall(
     params: {
       protocolVersion: "2024-11-05",
       capabilities: {},
-      clientInfo: { name: "bobby-cli", version: "0.1.0" },
+      clientInfo: { name: "bobby-cli", version: VERSION },
     },
   });
 
