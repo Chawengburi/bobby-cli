@@ -46,33 +46,49 @@ too).
 | `auth forget` | `{ ok: true, deleted: boolean }` | — (doesn't fail) |
 | `memory *` | `{ ok: true, text: string }` | `{ ok: false, error: string }` |
 
-Note the inconsistency between `auth login`'s `{ ok, error }` shape and
-`auth show`'s `{ loggedIn }` shape — both are "did this succeed" signals but
-under different key names, and only the `memory` family's failure path
-reliably sets a non-zero exit code in JSON mode (see
-[03](./03-spec-commands.md) § Exit codes and
-[07](./07-spec-roadmap-open-questions.md)).
+The long-noted inconsistency between `auth login`'s `{ ok, error }` shape
+and `auth show`'s `{ loggedIn }` shape is **resolved by
+[12-spec-agent-legible-output.md](./12-spec-agent-legible-output.md) § 2.1**
+(decided 2026-07-17): `auth show` joins the `{ ok, code, ... }` envelope
+with `loggedIn` as a domain field, exit 0 in both states. The table above
+shows the pre-spec-12 shapes; spec 12 § 1–2 defines the extended envelope
+(`code`, `hint`, structured fields) for every command. The remaining
+exit-code asymmetry (only the `memory` family reliably sets non-zero exit
+in JSON mode) is unchanged — see [03](./03-spec-commands.md) § Exit codes
+and [07](./07-spec-roadmap-open-questions.md).
 
 ## Error taxonomy
 
 | Error class | Where | When |
 |---|---|---|
-| `AuthCenterError` | `src/authClient.ts` | `/auth/token` or `/auth/tokens` returned non-2xx, or the request never reached the server |
-| `McpError` | `src/mcpClient.ts` | session-memory's `/mcp` endpoint returned non-2xx, 401/403, an empty response, or a JSON-RPC `error` field |
-| `CliAuthError` | `src/config.ts` | No local credentials found (`requireCredentials()`) |
+| `AuthCenterError` | `src/core/authClient.ts` | `/auth/token` or `/auth/tokens` returned non-2xx, or the request never reached the server |
+| `McpError` | `src/core/mcpClient.ts` | session-memory's `/mcp` endpoint returned non-2xx, 401/403, an empty response, or a JSON-RPC `error` field |
+| `CliAuthError` | `src/core/config.ts` | No local credentials found (`requireCredentials()`) |
 
-All three are plain `Error` subclasses with no extra fields — call sites
-extract `.message` and treat everything else as an unexpected `Error`,
-falling back to `(err as Error).message`. This keeps the error surface
-simple at the cost of losing structured error codes/status; see
-[07](./07-spec-roadmap-open-questions.md) for whether that's worth adding.
+All three are `Error` subclasses. As of
+[12-spec-agent-legible-output.md](./12-spec-agent-legible-output.md)
+(decided 2026-07-17) they carry two optional structured fields — this
+supersedes the earlier "plain Error, no extra fields" rule:
+
+- `status?: number` — the HTTP status, set when the server answered non-2xx
+- `cause?: string` — the network error code from `describeNetworkError()`
+  (`ECONNREFUSED`, `ENOTFOUND`, …), set when the request never reached the
+  server
+
+Exactly one of the two is set per error (`CliAuthError` sets neither — the
+class itself means "no local credentials"). Spec 12 § 2 maps these onto
+failure `code`s **per (transport, status)** — e.g. a 401 from session-memory
+is `not_logged_in` but a 401 from auth-center during login is
+`login_failed`; scope denial on the memory path arrives as a 200 text, not
+a status (spec 12 § 1.1). Call sites that only read `.message` keep
+working; the fields are additive.
 
 ## Network error messages
 
 Node's `fetch()` collapses every connection-level failure (DNS failure,
 connection refused, TLS error, ...) into a bare `TypeError: fetch failed`,
 with the actionable code (`ECONNREFUSED`, `ENOTFOUND`, ...) buried in
-`.cause`. `describeNetworkError()` (`src/networkError.ts`) surfaces that
+`.cause`. `describeNetworkError()` (`src/core/networkError.ts`) surfaces that
 code so a human or an agent parsing `--json` can tell "the server is down"
 apart from "wrong password" — both otherwise look like generic failures.
 

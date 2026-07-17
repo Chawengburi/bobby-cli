@@ -53,8 +53,12 @@ same SKILL.md convention), so lessons learned here are directly reusable.
 
 ### Skill placement and shape
 
-- Location: `000-chawengburi/.claude/skills/session-memory/SKILL.md`
+- Location: `000-chawengburi/.claude/skills/bobby-cli/SKILL.md`
   (project-level, so it ships with the repo and only affects this project).
+- Naming: the skill is named after the tool (`bobby-cli`), not the domain —
+  the long-term direction is ONE skill bundling all bobby-cli capabilities
+  across agents (memory today; auth and future domains later), never one
+  skill per domain. (Renamed from `session-memory` on 2026-07-15.)
 - The skill is instructions + command templates only — no wrapper script.
   Claude Code builds argv from the templates the same way spec 09 requires
   executors to: values as separate argv elements, optional flags omitted
@@ -106,7 +110,7 @@ stdout/stderr in any mode (spec 06). The skill adds one guard on top: never
 ### Relationship to the CLAUDE.md mandatory rules
 
 During the trial the project `CLAUDE.md` memory section gets a one-line
-pointer: "memory operations go through the `session-memory` skill
+pointer: "memory operations go through the `bobby-cli` skill
 (bobby-cli), not the MCP tools." The MCP server stays configured as fallback;
 rule 6's "tell me immediately if tools are unavailable" applies to the CLI
 path the same way. Rollback = delete the skill + restore the section.

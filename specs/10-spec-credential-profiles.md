@@ -187,9 +187,12 @@ function needing to exist.
 ## Concrete usage: replacing the openClaw helper scripts
 
 ```bash
-# /login skill, replacing the inline curl/Python block:
+# /login skill, replacing the inline curl/Python block.
+# Credentials go via env vars, never --email/--password flags: argv is
+# visible in the process list (`ps`) on a shared host (see spec 13 §6).
 BOBBY_CLI_PROFILES_DIR=~/.openclaw/user-sessions \
-  bobby-cli auth login --email "$EMAIL" --password "$PASSWORD" --profile "$SENDER_ID" --json
+BOBBY_CLI_EMAIL="$EMAIL" BOBBY_CLI_PASSWORD="$PASSWORD" \
+  bobby-cli auth login --profile "$SENDER_ID" --json
 
 # session-memory-call.py, replaced entirely by:
 BOBBY_CLI_PROFILES_DIR=~/.openclaw/user-sessions \

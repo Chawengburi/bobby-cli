@@ -79,8 +79,22 @@ that most function-calling schemas reject in tool names.
 | `description` | What the agent sees when deciding whether to call this tool |
 | `command` | The bobby-cli subcommand path, for building the invocation |
 | `input_schema` | JSON Schema for arguments — matches each command's actual flags/positional args in [03](./03-spec-commands.md) |
-| `output_schema` | Matches the `--json` shapes documented in [06-spec-output-conventions.md](./06-spec-output-conventions.md) — including its noted inconsistencies (e.g. `auth_login`'s `{ok,error}` vs `auth_show`'s `{loggedIn}`) until those are fixed |
+| `output_schema` | Matches the `--json` shapes documented in [06-spec-output-conventions.md](./06-spec-output-conventions.md), i.e. the spec 12 extended envelope (`code`, `hint`, structured fields; `auth_show` normalized per spec 12 § 2.1) once that ships — updating these in the same change as the envelope is a spec 12 acceptance criterion |
 | `invocation` | A template string an executor fills in and spawns as a subprocess — always includes `--json` |
+
+(A per-tool `x-skill-exclude` field was briefly specced 2026-07-17 for a
+skill-file renderer; that renderer was retired 2026-07-18 before
+implementation — see [13-spec-skill-architecture.md](./13-spec-skill-architecture.md)
+§ "Retired" — so the field does not exist.)
+
+### Manifest `version` tracks the CLI version
+
+Decided 2026-07-17 (closing the 0.1.0-manifest vs 0.2.x-CLI drift):
+`schema/tools.json`'s top-level `version` always equals the npm package
+version and is bumped in the same change — it versions the
+manifest-as-shipped, not an independent schema lineage. This lets any
+consumer (skill author, tool executor, a human debugging) check whether
+the manifest they're reading describes the binary that's installed.
 
 ## Generation strategy: hand-maintained for v1
 

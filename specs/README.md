@@ -17,8 +17,10 @@ built, why it's shaped the way it is, and what's intentionally deferred.
 | 09 | [09-spec-agent-tool-schema.md](./09-spec-agent-tool-schema.md) | Tool-schema manifest so AI agents can call bobby-cli as typed tools — no shared MCP server |
 | 10 | [10-spec-credential-profiles.md](./10-spec-credential-profiles.md) | `--profile` override so one shared machine (openClaw on a cloud host) can dispatch to a different identity per invocation, e.g. one profile per Discord user |
 | 11 | [11-spec-claude-code-skill.md](./11-spec-claude-code-skill.md) | Claude Code skill that drives all memory ops through bobby-cli (first real consumer of the spec 09 manifest) — the dress rehearsal for openClaw's migration |
+| 12 | [12-spec-agent-legible-output.md](./12-spec-agent-legible-output.md) | Structured `code`/`hint` extension to the `--json` envelope so domain outcomes and recovery instructions live in the CLI, letting agent skills shrink to policy + command table |
+| 13 | [13-spec-skill-architecture.md](./13-spec-skill-architecture.md) | One single-file hand-maintained skill per CLI (revised 2026-07-18; the hub-and-spoke + `schema render` generator design was retired before implementation) — drift controlled by the same-change rule, with a growth path for when domains multiply |
 
-**Read order:** 01 → 02 → 03 → 04 → 05 → 06 → 07 → 08 → 09 → 10 → 11
+**Read order:** 01 → 02 → 03 → 04 → 05 → 06 → 07 → 08 → 09 → 10 → 11 → 12 → 13
 
 ---
 
