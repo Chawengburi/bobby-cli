@@ -13,9 +13,10 @@ const PROFILE_NAME_RE = /^[a-zA-Z0-9_-]+$/;
 // any coding agent) hits the same auth-center/session-memory deployment.
 //
 // These are the real PRODUCTION URLs. For local dev/testing against the
-// separate testing-account deployment, copy .env.example to .env — see README.
+// separate testing-account deployment, copy .env.example to .env or
+// ~/.bobby-cli/.env — see README.
 //
-// AUTH_CENTER / SESSION_MEMORY_URL env vars (or a local .env) override these —
+// AUTH_CENTER / SESSION_MEMORY_URL env vars (or dotenv files) override these —
 // that's for your own dev/testing, not a feature for end users to touch.
 const DEFAULT_AUTH_CENTER_URL = "https://auth-center.phantaporntr.workers.dev";
 const DEFAULT_SESSION_MEMORY_URL = "https://second-brain.phantaporntr.workers.dev/mcp";

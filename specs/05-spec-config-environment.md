@@ -1,11 +1,11 @@
 # 05 Spec: Configuration & Environment
 
-> Implementation: `src/config.ts`
+> Implementation: `src/core/config.ts` and `src/index.ts`
 
 ## Fixed backend, by design
 
 bobby-cli talks to **one** organization backend, baked into
-`src/config.ts` — not a per-installer setting:
+`src/core/config.ts` — not a per-installer setting:
 
 ```
 DEFAULT_AUTH_CENTER_URL     = https://auth-center.phantaporntr.workers.dev
@@ -24,16 +24,18 @@ via `resolveAuthCenterUrl()` / `resolveSessionMemoryUrl()`:
 
 ```
 1. Explicit shell env var (AUTH_CENTER / SESSION_MEMORY_URL)   — highest precedence
-2. Stored value from a prior `auth login` (credentials.json)
-3. Fixed org default baked into src/config.ts                  — lowest precedence
+2. Repo-local `.env` from the current working directory
+3. Device-level `.env` from `~/.bobby-cli/.env`
+4. Stored value from a prior `auth login` (credentials.json)
+5. Fixed org default baked into src/core/config.ts             — lowest precedence
 ```
 
-A `.env` file (loaded via `dotenv`, see `src/index.ts`) only ever sets
-process env vars that aren't already set — so it behaves as step 1 when no
-real `export` exists, and is silently overridden by a real `export` if one
-does. `.env` is gitignored and excluded from the published npm package
-(verified via `npm pack --dry-run`); it only takes effect when the current
-working directory is `bobby-cli/`.
+Dotenv files (loaded via `dotenv`, see `src/index.ts`) only ever set process
+env vars that aren't already set — so they are silently overridden by a real
+`export` if one exists. Repo-local `.env` is gitignored and excluded from the
+published npm package (verified via `npm pack --dry-run`); it only takes
+effect when the current working directory has that `.env`. The device-level
+`~/.bobby-cli/.env` file works from any directory, including a global install.
 
 The override applies **per-command** and needs no re-login — `auth login`
 itself also respects it, so a test/dev deployment can be logged into
@@ -63,6 +65,16 @@ Pre-filled with the separate testing-account deployment
 `second-brain.tanaphat-jaroonrueang.workers.dev`). Also supports commented-out
 `BOBBY_CLI_EMAIL`/`BOBBY_CLI_PASSWORD` for a fully non-interactive dev login
 loop.
+
+For installed/global CLIs on your own devices:
+
+```bash
+mkdir -p ~/.bobby-cli
+cp .env.example ~/.bobby-cli/.env
+```
+
+That device-level file points your machine at testing or local URLs without
+changing the production fallback baked into the package.
 
 ## What is and isn't secret here
 

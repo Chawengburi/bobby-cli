@@ -2,7 +2,7 @@
 
 A CLI for our own auth-center + session-memory — one login and one memory client that works the same way whether it's you at a terminal, a coding agent, an AI agent, openClaw, Hermes, or anything else that can shell out to a binary.
 
-**This is an internal tool published to npm for easy installation, not a generic bring-your-own-backend CLI.** Every install talks to the same fixed auth-center/session-memory deployment (baked into the code) — `auth login` only ever asks for your email and password, never for a server URL. See "Configuration" below if that surprises you.
+**This is an internal tool published to npm for easy installation, not a generic bring-your-own-backend CLI.** Every install talks to the same fixed auth-center/session-memory deployment unless you set a per-device `.env` or exported env vars — `auth login` only ever asks for your email and password, never for a server URL. See "Configuration" below if that surprises you.
 
 ```
 npm install -g bobby-cli
@@ -55,14 +55,14 @@ Every command accepts `--json` for machine-readable output — this is what agen
 
 ## Configuration
 
-**bobby-cli has one fixed backend, baked into the code** (`src/config.ts`) — not a per-installer setting. `auth login` never asks for a server URL, only email + password. This is deliberate: bobby-cli is published to npm purely so it's easy to `npm install -g` across every machine/agent in our own setup, not so arbitrary third parties can point it at their own infrastructure.
+**bobby-cli has one fixed backend, baked into the code** (`src/core/config.ts`) — not a per-installer setting. `auth login` never asks for a server URL, only email + password. This is deliberate: bobby-cli is published to npm purely so it's easy to `npm install -g` across every machine/agent in our own setup, not so arbitrary third parties can point it at their own infrastructure.
 
 ```
 DEFAULT_AUTH_CENTER_URL     = https://auth-center.phantaporntr.workers.dev
 DEFAULT_SESSION_MEMORY_URL  = https://second-brain.phantaporntr.workers.dev/mcp
 ```
 
-These are the real production URLs — every install of the published package hits this deployment by default, no configuration needed.
+These are the real production URLs — every install of the published package falls back to this deployment if no env override is configured.
 
 ### Overriding the fixed backend (dev/testing only)
 
@@ -72,7 +72,18 @@ These are the real production URLs — every install of the published package hi
 AUTH_CENTER=https://auth-center.tanaphat-jaroonrueang.workers.dev SESSION_MEMORY_URL=https://second-brain.tanaphat-jaroonrueang.workers.dev/mcp bobby-cli memory show
 ```
 
-The override applies per-command and needs no re-login — `auth login` itself also respects it (see `resolveAuthCenterUrl`/`resolveSessionMemoryUrl` in `src/config.ts`), so you can log in against a test deployment without touching the fixed default.
+The override applies per-command and needs no re-login — `auth login` itself also respects it (see `resolveAuthCenterUrl`/`resolveSessionMemoryUrl` in `src/core/config.ts`), so you can log in against a test deployment without touching the fixed default.
+
+### Device-level `.env`
+
+For your own machines, put the testing or local server URLs in `~/.bobby-cli/.env`:
+
+```bash
+mkdir -p ~/.bobby-cli
+cp .env.example ~/.bobby-cli/.env
+```
+
+That file is loaded automatically no matter which directory you run `bobby-cli` from, including a global npm install. This is the recommended way to make your devices use the testing-account deployment instead of the production URLs baked into the package.
 
 ### Local development with `.env`
 
@@ -82,7 +93,7 @@ Same override, without exporting env vars every time. Copy `.env.example` to `.e
 cp .env.example .env
 ```
 
-`.env` is loaded automatically, is gitignored, and **is never included when this package is published to npm** — it only ever affects commands run with this repo as the working directory. Precedence: a real exported shell env var > `.env` > the fixed default baked into the code. You can also set `BOBBY_CLI_EMAIL`/`BOBBY_CLI_PASSWORD` there to make `auth login` fully non-interactive during dev.
+Repo-local `.env` is loaded automatically, is gitignored, and **is never included when this package is published to npm** — it only affects commands run with this repo as the working directory. Precedence: a real exported shell env var > repo-local `.env` > `~/.bobby-cli/.env` > the fixed default baked into the code. You can also set `BOBBY_CLI_EMAIL`/`BOBBY_CLI_PASSWORD` there to make `auth login` fully non-interactive during dev.
 
 ### Non-interactive login
 

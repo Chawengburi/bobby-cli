@@ -88,7 +88,16 @@ removes it with no trace left behind. Run this if you ever want your machine to 
 cp .env.example .env
 ```
 
-Then edit `.env` with a text editor and fill in the testing-account URLs (already pre-filled in `.env.example`) or your own local `wrangler dev` URLs. This file is only ever read when your current directory is `bobby-cli/` — it has zero effect anywhere else, including for anyone who installs the published package.
+Then edit `.env` with a text editor and fill in the testing-account URLs (already pre-filled in `.env.example`) or your own local `wrangler dev` URLs. This file is only read when your current directory is `bobby-cli/`.
+
+For an installed/global CLI on your own devices, use the device-level dotenv file instead:
+
+```bash
+mkdir -p ~/.bobby-cli
+cp .env.example ~/.bobby-cli/.env
+```
+
+`bobby-cli` loads that file from any working directory, so your devices can point at the testing-account deployment without replacing the production fallback URLs in code.
 
 ---
 
