@@ -1,5 +1,14 @@
 # T05 — [session-memory repo] Declare outcome strings as API surface at each emit site
 
+> **DONE (2026-07-20)** — comments added at all ~14 emit sites in
+> `session-memory/src/index.ts` (line numbers matched this ticket exactly,
+> no drift) plus the 2 intentionally-unclassified sites noted; new spec
+> `session-memory/specs/10-spec-bobby-cli-api-surface.md` documents the
+> obligation and cross-references this spec. `npx tsc --noEmit` confirmed
+> clean (no `npm run build` script exists in that repo). Diff is
+> comment-only — `git diff` shows 0 deletions, confirming no string literal
+> text changed.
+
 **Type:** Task
 **Priority:** High
 **Complexity:** S (half day)
