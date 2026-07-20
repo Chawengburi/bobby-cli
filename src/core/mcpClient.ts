@@ -117,7 +117,10 @@ export async function mcpToolCall(
   if (msg.error) throw new McpError(msg.error.message);
 
   const text = msg.result?.content?.map((c) => c.text).join("") ?? "";
-  const scopeMatch = /^Requires scope: (.+)$/.exec(text);
+  // .trim() before matching so a future trailing-newline change on the
+  // Worker side can't make `$` fail to anchor and silently misclassify a
+  // scope denial as success.
+  const scopeMatch = /^Requires scope: (.+)$/.exec(text.trim());
   if (scopeMatch) {
     throw new McpError(text, { scope: scopeMatch[1] });
   }
