@@ -17,3 +17,11 @@ export type { AuthCenterUser, LoginResult, MintedApiToken, ApiTokenSummary } fro
 export { mcpToolCall, McpError } from "./mcpClient.js";
 
 export { describeNetworkError } from "./networkError.js";
+
+export {
+  classifyMcpFailure,
+  classifyAuthCenterFailure,
+  classifyCliAuthFailure,
+  SERVER_HINT,
+} from "./classifyFailure.js";
+export type { Failure } from "./classifyFailure.js";

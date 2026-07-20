@@ -1,12 +1,25 @@
 import { Command } from "commander";
-import { requireCredentials, resolveSessionMemoryUrl, CliAuthError, mcpToolCall, McpError } from "../core/index.js";
+import {
+  requireCredentials,
+  resolveSessionMemoryUrl,
+  CliAuthError,
+  mcpToolCall,
+  McpError,
+  classifyMcpFailure,
+  classifyCliAuthFailure,
+  SERVER_HINT,
+} from "../core/index.js";
 import { classifyMemoryOutcome, type MemoryOutcome } from "../core/classifyMemoryOutcome.js";
-import { printError, printJson } from "../output.js";
+import { printError, printInfo, printJson } from "../output.js";
 
 interface BaseOpts {
   json?: boolean;
   profile?: string;
 }
+
+type CallToolResult =
+  | ({ ok: true; text: string } & MemoryOutcome)
+  | { ok: false; error: string; code: string; hint: string; scope?: string };
 
 const PROFILE_OPTION = [
   "--profile <name>",
@@ -17,21 +30,29 @@ async function callTool(
   toolName: string,
   args: Record<string, unknown>,
   profile?: string
-): Promise<({ ok: true; text: string } & MemoryOutcome) | { ok: false; error: string }> {
+): Promise<CallToolResult> {
   try {
     const creds = requireCredentials(profile);
     const sessionMemoryUrl = resolveSessionMemoryUrl(creds.sessionMemoryUrl);
     const text = await mcpToolCall(sessionMemoryUrl, creds.apiToken, toolName, args);
     return { ok: true, text, ...classifyMemoryOutcome(text) };
   } catch (err) {
-    if (err instanceof CliAuthError || err instanceof McpError) {
-      return { ok: false, error: err.message };
+    if (err instanceof CliAuthError) {
+      const failure = classifyCliAuthFailure(err);
+      return { ok: false, error: err.message, code: failure.code, hint: failure.hint };
     }
-    return { ok: false, error: (err as Error).message };
+    if (err instanceof McpError) {
+      const failure = classifyMcpFailure(err);
+      return { ok: false, error: err.message, code: failure.code, hint: failure.hint, scope: failure.scope };
+    }
+    // Not a CliAuthError/McpError — an unexpected internal failure (e.g. an
+    // invalid --profile name), not bad argv, so it's "server" rather than
+    // "usage".
+    return { ok: false, error: (err as Error).message, code: "server", hint: SERVER_HINT };
   }
 }
 
-function emit(result: ({ ok: true; text: string } & MemoryOutcome) | { ok: false; error: string }, json?: boolean): void {
+function emit(result: CallToolResult, json?: boolean): void {
   if (json) {
     printJson(result);
     if (!result.ok) process.exitCode = 1;
@@ -41,6 +62,7 @@ function emit(result: ({ ok: true; text: string } & MemoryOutcome) | { ok: false
     console.log(result.text);
   } else {
     printError(result.error);
+    printInfo(result.hint);
   }
 }
 
@@ -117,7 +139,8 @@ export function registerMemoryCommand(program: Command): void {
     .action(async (text: string | undefined, opts: BaseOpts & { tags?: string }) => {
       const content = text ?? (await readStdin());
       if (!content) {
-        emit({ ok: false, error: "No content given (pass text or pipe via stdin)." }, opts.json);
+        const message = "No content given (pass text or pipe via stdin).";
+        emit({ ok: false, error: message, code: "usage", hint: message }, opts.json);
         return;
       }
       const result = await callTool(

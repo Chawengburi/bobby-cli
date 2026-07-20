@@ -15,6 +15,8 @@ import {
   listApiTokens,
   rotateApiToken,
   AuthCenterError,
+  classifyAuthCenterFailure,
+  SERVER_HINT,
 } from "../core/index.js";
 import { printError, printInfo, printJson, printSuccess } from "../output.js";
 
@@ -117,11 +119,17 @@ async function runLogin(opts: LoginOptions): Promise<void> {
     }
   } catch (err) {
     const message = err instanceof AuthCenterError ? err.message : (err as Error).message;
+    // context: "login" — a 401 here (bad credentials during `auth login`
+    // itself) is login_failed, not not_logged_in (see classifyFailure.ts).
+    const failure = err instanceof AuthCenterError
+      ? classifyAuthCenterFailure(err, "login")
+      : { code: "server", hint: SERVER_HINT };
     if (opts.json) {
-      printJson({ ok: false, error: message });
+      printJson({ ok: false, error: message, code: failure.code, hint: failure.hint });
       process.exitCode = 1;
     } else {
       printError(message);
+      printInfo(failure.hint);
     }
   }
 }
@@ -131,12 +139,16 @@ function runShow(opts: { json?: boolean; profile?: string }): void {
   try {
     creds = loadCredentials(opts.profile);
   } catch (err) {
+    // loadCredentials only throws from resolveCredentialsPath's invalid
+    // --profile name check (bad local input) — never a CliAuthError or
+    // AuthCenterError, so "usage" is the right code, not a fallback.
     const message = (err as Error).message;
     if (opts.json) {
-      printJson({ ok: false, error: message });
+      printJson({ ok: false, error: message, code: "usage", hint: message });
       process.exitCode = 1;
     } else {
       printError(message);
+      printInfo(message);
     }
     return;
   }
@@ -183,12 +195,15 @@ function runForget(opts: { json?: boolean; profile?: string }): void {
   try {
     existed = deleteCredentials(opts.profile);
   } catch (err) {
+    // Same reasoning as runShow: deleteCredentials only throws from
+    // resolveCredentialsPath's invalid --profile name check.
     const message = (err as Error).message;
     if (opts.json) {
-      printJson({ ok: false, error: message });
+      printJson({ ok: false, error: message, code: "usage", hint: message });
       process.exitCode = 1;
     } else {
       printError(message);
+      printInfo(message);
     }
     return;
   }
