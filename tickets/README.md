@@ -21,6 +21,52 @@ Every ticket below is self-contained — exact file paths, exact contracts
 criteria, explicit out-of-scope. A fresh implementer should not need to open
 the specs to do the work, only to understand *why* if curious.
 
+## Implementation workflow (apply to every ticket)
+
+Established during T01 (2026-07-20) — follow this for every remaining
+ticket, one ticket per session/commit:
+
+1. **Read only the ticket file.** Tickets are self-contained by design (see
+   above) — don't open the source specs unless you want the *why*.
+2. **Read every file you're about to edit before editing it** (not just the
+   diff excerpt in the ticket — the whole enclosing function). The ticket's
+   "Current code" section can drift from the real file; re-verify.
+3. **Implement exactly the "Exact changes required" section.** Nothing
+   outside the ticket's named files — check `git diff --stat` against the
+   ticket's own file list before committing (see step 6).
+4. **`npm run build`** — must compile clean before anything else.
+5. **Verify every Acceptance Criterion by actually running something**, not
+   by reading the code and asserting it looks right. Write throwaway
+   scripts against `dist/` (mock `fetch` for unit-shaped ACs; use a real
+   closed port / real live test-deployment call for transport-shaped ACs
+   per the ticket's "Live-test safety" notes if present). Delete scratch
+   files when done — they don't belong in the repo.
+6. **Diff-scope check** — `git diff --stat` should match only the files the
+   ticket names. If it doesn't, you scope-crept; back out the extra change
+   or fold it into a separate ticket.
+7. **Commit**, message references the ticket ID
+   (`feat(...): T0X — ...`), body explains *why* not what (the diff already
+   shows what). One ticket = one commit minimum, referenced diff-per-ticket
+   must stay traceable.
+8. **Run `/code-review` (medium effort)** against the new commit
+   (`git diff HEAD~1...HEAD`, not the whole ahead-of-origin range — isolate
+   to just this ticket's diff). Let it dispatch its finder/verify agents;
+   don't skip verification just because a finding "sounds minor."
+9. **Fix every CONFIRMED and PLAUSIBLE finding**, same actually-run
+   verification standard as step 5 (e.g. re-test the exact failing input
+   from the finder's repro before and after the fix). REFUTED findings need
+   no action — don't "fix" something the review already disproved.
+10. **Commit the review fixes separately**, message references the same
+    ticket ID + "follow-up" (`fix(...): T0X follow-up — ...`), body names
+    which findings were fixed and how they were verified.
+11. **Report back concisely**: which ACs were verified (and how), the
+    commit hash(es), and what the review found/fixed. No need to re-explain
+    the ticket's own content back to the user — they already have it.
+
+Repo-boundary and live-test-safety rules elsewhere in this file/the tickets
+themselves still apply on top of this — this workflow is the *shape* of a
+session, not a replacement for a given ticket's specific constraints.
+
 ## Implementation order and dependencies
 
 Spec 12 (envelope) lands as one connected unit before the spec 13 skill
