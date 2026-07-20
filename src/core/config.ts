@@ -96,4 +96,6 @@ export function resolveSessionMemoryUrl(stored?: string | null): string {
   return process.env.SESSION_MEMORY_URL ?? stored ?? DEFAULT_SESSION_MEMORY_URL;
 }
 
+// Deliberately no status/networkCause fields (spec 12 §2): "no local
+// credentials" needs no transport detail — the class itself is the signal.
 export class CliAuthError extends Error {}

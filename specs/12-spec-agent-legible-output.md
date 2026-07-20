@@ -217,7 +217,7 @@ against REST endpoints the CLI doesn't use):
 status and network cause, which the error classes don't carry today.
 `AuthCenterError`, `McpError`, and `CliAuthError` gain optional structured
 fields — `status?: number` (HTTP status when the server answered) and
-`cause?: string` (the network error code from `describeNetworkError()`,
+`networkCause?: string` (the network error code from `describeNetworkError()`,
 e.g. `ECONNREFUSED`, when it didn't). Spec 06's "plain Error, no extra
 fields" statement is superseded; spec 06's Error-taxonomy section is
 updated in the same change as this spec (not left as a remote amendment).
@@ -227,7 +227,7 @@ additive.
 | Error state | Fields set |
 |---|---|
 | server answered non-2xx | `status` |
-| connection-level failure | `cause` |
+| connection-level failure | `networkCause` |
 | no local credentials (`CliAuthError`) | neither — the class itself is the signal |
 
 `permission_denied` exists because authorization is **server-side by design**:

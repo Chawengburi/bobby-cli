@@ -3,7 +3,7 @@
 //   POST /auth/tokens { label, resource, scopes } (Bearer <session token>) -> sm_live_... API token (shown once)
 // See auth-center/src/app.ts:720 and :791.
 
-import { describeNetworkError } from "./networkError.js";
+import { describeNetworkError, networkErrorCode } from "./networkError.js";
 
 export interface AuthCenterUser {
   id: string;
@@ -26,7 +26,15 @@ export interface MintedApiToken {
   expiresAt: string | null;
 }
 
-export class AuthCenterError extends Error {}
+export class AuthCenterError extends Error {
+  status?: number;
+  networkCause?: string;
+  constructor(message: string, opts?: { status?: number; networkCause?: string }) {
+    super(message);
+    this.status = opts?.status;
+    this.networkCause = opts?.networkCause;
+  }
+}
 
 async function readErrorMessage(res: Response): Promise<string> {
   try {
@@ -51,11 +59,11 @@ export async function login(
       body: JSON.stringify({ email, password }),
     });
   } catch (err) {
-    throw new AuthCenterError(describeNetworkError(err, url));
+    throw new AuthCenterError(describeNetworkError(err, url), { networkCause: networkErrorCode(err) });
   }
 
   if (!res.ok) {
-    throw new AuthCenterError(`Login failed: ${await readErrorMessage(res)}`);
+    throw new AuthCenterError(`Login failed: ${await readErrorMessage(res)}`, { status: res.status });
   }
 
   const data = (await res.json()) as { accessToken: string; user: AuthCenterUser };
@@ -83,11 +91,13 @@ export async function mintApiToken(
       }),
     });
   } catch (err) {
-    throw new AuthCenterError(describeNetworkError(err, url));
+    throw new AuthCenterError(describeNetworkError(err, url), { networkCause: networkErrorCode(err) });
   }
 
   if (!res.ok) {
-    throw new AuthCenterError(`Could not mint an API token: ${await readErrorMessage(res)}`);
+    throw new AuthCenterError(`Could not mint an API token: ${await readErrorMessage(res)}`, {
+      status: res.status,
+    });
   }
 
   const data = (await res.json()) as {
@@ -123,11 +133,13 @@ export async function listApiTokens(
       headers: { Authorization: `Bearer ${sessionToken}` },
     });
   } catch (err) {
-    throw new AuthCenterError(describeNetworkError(err, url));
+    throw new AuthCenterError(describeNetworkError(err, url), { networkCause: networkErrorCode(err) });
   }
 
   if (!res.ok) {
-    throw new AuthCenterError(`Could not list tokens: ${await readErrorMessage(res)}`);
+    throw new AuthCenterError(`Could not list tokens: ${await readErrorMessage(res)}`, {
+      status: res.status,
+    });
   }
 
   const data = (await res.json()) as {
@@ -149,11 +161,13 @@ export async function rotateApiToken(
       headers: { Authorization: `Bearer ${sessionToken}` },
     });
   } catch (err) {
-    throw new AuthCenterError(describeNetworkError(err, url));
+    throw new AuthCenterError(describeNetworkError(err, url), { networkCause: networkErrorCode(err) });
   }
 
   if (!res.ok) {
-    throw new AuthCenterError(`Could not rotate the API token: ${await readErrorMessage(res)}`);
+    throw new AuthCenterError(`Could not rotate the API token: ${await readErrorMessage(res)}`, {
+      status: res.status,
+    });
   }
 
   const data = (await res.json()) as {

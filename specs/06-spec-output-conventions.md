@@ -71,7 +71,7 @@ All three are `Error` subclasses. As of
 supersedes the earlier "plain Error, no extra fields" rule:
 
 - `status?: number` — the HTTP status, set when the server answered non-2xx
-- `cause?: string` — the network error code from `describeNetworkError()`
+- `networkCause?: string` — the network error code from `describeNetworkError()`
   (`ECONNREFUSED`, `ENOTFOUND`, …), set when the request never reached the
   server
 
