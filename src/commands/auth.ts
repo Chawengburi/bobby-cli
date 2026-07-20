@@ -155,7 +155,12 @@ function runShow(opts: { json?: boolean; profile?: string }): void {
 
   if (!creds) {
     if (opts.json) {
-      printJson({ loggedIn: false });
+      printJson({
+        ok: true,
+        code: "status",
+        loggedIn: false,
+        hint: "Run 'bobby-cli auth login' to log in.",
+      });
     } else {
       printInfo("Not logged in. Run `bobby-cli auth login`.");
     }
@@ -177,7 +182,7 @@ function runShow(opts: { json?: boolean; profile?: string }): void {
   };
 
   if (opts.json) {
-    printJson(summary);
+    printJson({ ok: true, code: "status", ...summary });
   } else {
     console.log(`Email:        ${summary.email}`);
     console.log(`Tenant:       ${summary.tenantId ?? "(none)"}`);
