@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { requireCredentials, resolveSessionMemoryUrl, CliAuthError, mcpToolCall, McpError } from "../core/index.js";
+import { classifyMemoryOutcome, type MemoryOutcome } from "../core/classifyMemoryOutcome.js";
 import { printError, printJson } from "../output.js";
 
 interface BaseOpts {
@@ -16,12 +17,12 @@ async function callTool(
   toolName: string,
   args: Record<string, unknown>,
   profile?: string
-): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+): Promise<({ ok: true; text: string } & MemoryOutcome) | { ok: false; error: string }> {
   try {
     const creds = requireCredentials(profile);
     const sessionMemoryUrl = resolveSessionMemoryUrl(creds.sessionMemoryUrl);
     const text = await mcpToolCall(sessionMemoryUrl, creds.apiToken, toolName, args);
-    return { ok: true, text };
+    return { ok: true, text, ...classifyMemoryOutcome(text) };
   } catch (err) {
     if (err instanceof CliAuthError || err instanceof McpError) {
       return { ok: false, error: err.message };
@@ -30,7 +31,7 @@ async function callTool(
   }
 }
 
-function emit(result: { ok: true; text: string } | { ok: false; error: string }, json?: boolean): void {
+function emit(result: ({ ok: true; text: string } & MemoryOutcome) | { ok: false; error: string }, json?: boolean): void {
   if (json) {
     printJson(result);
     if (!result.ok) process.exitCode = 1;
