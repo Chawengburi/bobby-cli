@@ -1,6 +1,6 @@
 {
-  "$comment": "Agent tool-schema manifest for bobby-cli. See specs/09-spec-agent-tool-schema.md. This file is read-only data — never run as a server. Every invocation spawns a fresh `bobby-cli` subprocess; no shared connection or shared state across calls. Keep in sync with src/commands/auth.ts and src/commands/memory.ts whenever a command or flag changes. INVOCATION SAFETY (see specs/09-spec-agent-tool-schema.md § Invocation safety): `invocation` strings are illustrative only. An executor MUST build an argv array (e.g. child_process.execFile/spawn with an args array) and substitute each {placeholder} as its own argv element — never run the template through a shell or string-concatenate it, or a value containing spaces/quotes/shell metacharacters (especially {password}) can break argument boundaries or inject commands. An optional field that has no value MUST have its flag and value omitted entirely from argv — do not substitute an empty string (e.g. `--tags {tags}` with no tags becomes just `--tags`, which would incorrectly consume the next argv token).",
-  "version": "0.1.0",
+  "$comment": "Agent tool-schema manifest for bobby-cli. See specs/09-spec-agent-tool-schema.md. This file is read-only data — never run as a server. Every invocation spawns a fresh `bobby-cli` subprocess; no shared connection or shared state across calls. Keep in sync with src/commands/auth.ts and src/commands/memory.ts whenever a command or flag changes. INVOCATION SAFETY (see specs/09-spec-agent-tool-schema.md § Invocation safety): `invocation` strings are illustrative only. An executor MUST build an argv array (e.g. child_process.execFile/spawn with an args array) and substitute each {placeholder} as its own argv element — never run the template through a shell or string-concatenate it, or a value containing spaces/quotes/shell metacharacters (especially {password}) can break argument boundaries or inject commands. An optional field that has no value MUST have its flag and value omitted entirely from argv — do not substitute an empty string (e.g. `--tags {tags}` with no tags becomes just `--tags`, which would incorrectly consume the next argv token). Every `code` value in this file is a member of the canonical enum defined in bobby-cli/tickets/T02-memory-outcome-classifier.md — never invent a new one here.",
+  "version": "0.2.0",
   "tools": [
     {
       "name": "auth_login",
@@ -31,9 +31,11 @@
             "type": "object",
             "properties": {
               "ok": { "const": false },
-              "error": { "type": "string" }
+              "code": { "enum": ["login_failed", "permission_denied", "network", "server", "usage"] },
+              "error": { "type": "string" },
+              "hint": { "type": "string" }
             },
-            "required": ["ok", "error"]
+            "required": ["ok", "code", "error", "hint"]
           }
         ]
       },
@@ -54,6 +56,8 @@
           {
             "type": "object",
             "properties": {
+              "ok": { "const": true },
+              "code": { "const": "status" },
               "loggedIn": { "const": true },
               "email": { "type": "string" },
               "tenantId": { "type": ["string", "null"] },
@@ -65,14 +69,27 @@
               "authCenterUrl": { "type": "string" },
               "sessionMemoryUrl": { "type": "string" }
             },
-            "required": ["loggedIn", "email"]
+            "required": ["ok", "code", "loggedIn", "email"]
           },
           {
             "type": "object",
             "properties": {
-              "loggedIn": { "const": false }
+              "ok": { "const": true },
+              "code": { "const": "status" },
+              "loggedIn": { "const": false },
+              "hint": { "type": "string" }
             },
-            "required": ["loggedIn"]
+            "required": ["ok", "code", "loggedIn", "hint"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": false },
+              "code": { "const": "usage" },
+              "error": { "type": "string" },
+              "hint": { "type": "string" }
+            },
+            "required": ["ok", "code", "error", "hint"]
           }
         ]
       },
@@ -89,12 +106,26 @@
         }
       },
       "output_schema": {
-        "type": "object",
-        "properties": {
-          "ok": { "const": true },
-          "deleted": { "type": "boolean" }
-        },
-        "required": ["ok", "deleted"]
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": true },
+              "deleted": { "type": "boolean" }
+            },
+            "required": ["ok", "deleted"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": false },
+              "code": { "const": "usage" },
+              "error": { "type": "string" },
+              "hint": { "type": "string" }
+            },
+            "required": ["ok", "code", "error", "hint"]
+          }
+        ]
       },
       "invocation": "bobby-cli auth forget --profile {profile} --json"
     },
@@ -112,8 +143,36 @@
       },
       "output_schema": {
         "oneOf": [
-          { "type": "object", "properties": { "ok": { "const": true }, "text": { "type": "string" } }, "required": ["ok", "text"] },
-          { "type": "object", "properties": { "ok": { "const": false }, "error": { "type": "string" } }, "required": ["ok", "error"] }
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": true },
+              "code": { "const": "results" },
+              "text": { "type": "string" },
+              "count": { "type": "integer" }
+            },
+            "required": ["ok", "code", "text", "count"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": true },
+              "code": { "const": "unclassified" },
+              "text": { "type": "string" }
+            },
+            "required": ["ok", "code", "text"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": false },
+              "code": { "enum": ["not_logged_in", "permission_denied", "network", "server", "usage"] },
+              "error": { "type": "string" },
+              "hint": { "type": "string" },
+              "scope": { "type": "string" }
+            },
+            "required": ["ok", "code", "error", "hint"]
+          }
         ]
       },
       "invocation": "bobby-cli memory show -n {limit} --tags {tags} --profile {profile} --json"
@@ -134,8 +193,36 @@
       },
       "output_schema": {
         "oneOf": [
-          { "type": "object", "properties": { "ok": { "const": true }, "text": { "type": "string" } }, "required": ["ok", "text"] },
-          { "type": "object", "properties": { "ok": { "const": false }, "error": { "type": "string" } }, "required": ["ok", "error"] }
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": true },
+              "code": { "const": "results" },
+              "text": { "type": "string" },
+              "count": { "type": "integer" }
+            },
+            "required": ["ok", "code", "text", "count"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": true },
+              "code": { "const": "unclassified" },
+              "text": { "type": "string" }
+            },
+            "required": ["ok", "code", "text"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": false },
+              "code": { "enum": ["not_logged_in", "permission_denied", "network", "server", "usage"] },
+              "error": { "type": "string" },
+              "hint": { "type": "string" },
+              "scope": { "type": "string" }
+            },
+            "required": ["ok", "code", "error", "hint"]
+          }
         ]
       },
       "invocation": "bobby-cli memory recall {query} -n {limit} --tags {tags} --profile {profile} --json"
@@ -154,8 +241,59 @@
       },
       "output_schema": {
         "oneOf": [
-          { "type": "object", "properties": { "ok": { "const": true }, "text": { "type": "string" } }, "required": ["ok", "text"] },
-          { "type": "object", "properties": { "ok": { "const": false }, "error": { "type": "string" } }, "required": ["ok", "error"] }
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": true },
+              "code": { "const": "stored" },
+              "text": { "type": "string" },
+              "id": { "type": "string" }
+            },
+            "required": ["ok", "code", "text", "id"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": true },
+              "code": { "const": "duplicate_candidate" },
+              "text": { "type": "string" },
+              "id": { "type": "string" },
+              "similarity": { "type": "number" },
+              "existingId": { "type": "string" }
+            },
+            "required": ["ok", "code", "text", "id", "similarity", "existingId"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": true },
+              "code": { "const": "duplicate_rejected" },
+              "text": { "type": "string" },
+              "similarity": { "type": "number" },
+              "existingId": { "type": "string" }
+            },
+            "required": ["ok", "code", "text", "similarity", "existingId"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": true },
+              "code": { "const": "unclassified" },
+              "text": { "type": "string" }
+            },
+            "required": ["ok", "code", "text"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": false },
+              "code": { "enum": ["not_logged_in", "permission_denied", "network", "server", "usage"] },
+              "error": { "type": "string" },
+              "hint": { "type": "string" },
+              "scope": { "type": "string" }
+            },
+            "required": ["ok", "code", "error", "hint"]
+          }
         ]
       },
       "invocation": "bobby-cli memory remember {text} --tags {tags} --profile {profile} --json"
@@ -175,8 +313,46 @@
       },
       "output_schema": {
         "oneOf": [
-          { "type": "object", "properties": { "ok": { "const": true }, "text": { "type": "string" } }, "required": ["ok", "text"] },
-          { "type": "object", "properties": { "ok": { "const": false }, "error": { "type": "string" } }, "required": ["ok", "error"] }
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": true },
+              "code": { "const": "appended" },
+              "text": { "type": "string" },
+              "id": { "type": "string" }
+            },
+            "required": ["ok", "code", "text", "id"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": true },
+              "code": { "const": "not_found" },
+              "text": { "type": "string" },
+              "id": { "type": "string" }
+            },
+            "required": ["ok", "code", "text", "id"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": true },
+              "code": { "const": "unclassified" },
+              "text": { "type": "string" }
+            },
+            "required": ["ok", "code", "text"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": false },
+              "code": { "enum": ["not_logged_in", "permission_denied", "network", "server", "usage"] },
+              "error": { "type": "string" },
+              "hint": { "type": "string" },
+              "scope": { "type": "string" }
+            },
+            "required": ["ok", "code", "error", "hint"]
+          }
         ]
       },
       "invocation": "bobby-cli memory append {id} {text} --profile {profile} --json"
@@ -195,8 +371,46 @@
       },
       "output_schema": {
         "oneOf": [
-          { "type": "object", "properties": { "ok": { "const": true }, "text": { "type": "string" } }, "required": ["ok", "text"] },
-          { "type": "object", "properties": { "ok": { "const": false }, "error": { "type": "string" } }, "required": ["ok", "error"] }
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": true },
+              "code": { "const": "forgotten" },
+              "text": { "type": "string" },
+              "id": { "type": "string" }
+            },
+            "required": ["ok", "code", "text", "id"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": true },
+              "code": { "const": "not_found" },
+              "text": { "type": "string" },
+              "id": { "type": "string" }
+            },
+            "required": ["ok", "code", "text", "id"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": true },
+              "code": { "const": "unclassified" },
+              "text": { "type": "string" }
+            },
+            "required": ["ok", "code", "text"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": { "const": false },
+              "code": { "enum": ["not_logged_in", "permission_denied", "network", "server", "usage"] },
+              "error": { "type": "string" },
+              "hint": { "type": "string" },
+              "scope": { "type": "string" }
+            },
+            "required": ["ok", "code", "error", "hint"]
+          }
         ]
       },
       "invocation": "bobby-cli memory forget {id} --profile {profile} --json"
