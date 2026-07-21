@@ -1,5 +1,5 @@
 {
-  "name": "@chawengburi/bobby-cli",
+  "name": "@babyferret/bobby-cli",
   "version": "0.3.0",
   "description": "Unified CLI for auth-center + session-memory — one credential store and memory client for coding agents, AI agents, openClaw, Hermes, or any other platform",
   "type": "module",
