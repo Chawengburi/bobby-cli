@@ -1,15 +1,49 @@
 # 16 Spec: openClaw Migration — Consolidated Single Skill (supersedes spec 14 § 3.1)
 
-> **Status: DRAFT (2026-07-24) — not yet audited.** Written after an
-> in-conversation design discussion that deliberately chose a different
-> layering than spec 14 § 3.1 (which shipped ACCEPTED, 3 audit rounds,
-> 2026-07-20). This spec does **not** redo spec 14's research — it inherits
-> every section of spec 14 except § 3.1 (layering) and the parts of § 3.4/
-> § 3.6 that § 3.1's change forces to move. Per this project's own workflow
-> (`tickets/README.md`), this document must go through the same
-> `spec-refinement-advisor` audit ritual spec 12–15 used before it is
-> ticket-writeable — that has **not** happened yet. Do not implement against
-> this spec until it reaches ACCEPTED.
+> **Status: ACCEPTED (2026-07-24) — 3 audit rounds complete, round 3 GO.**
+> Written after an in-conversation design discussion that deliberately chose
+> a different layering than spec 14 § 3.1 (which shipped ACCEPTED, 3 audit
+> rounds, 2026-07-20). This spec does **not** redo spec 14's research — it
+> inherits every section of spec 14 except § 3.1 (layering) and the parts of
+> § 3.4/§ 3.6 that § 3.1's change forces to move. Three independent
+> fresh-eyes `spec-refinement-advisor` audit rounds, matching this project's
+> established ritual for specs 12–15, each re-deriving every technical claim
+> from the actual openClaw source (`/opt/homebrew/lib/node_modules/openclaw/
+> dist/`), bobby-cli's `src/`, and the live `~/.openclaw/workspace/` files
+> rather than trusting the spec's own citations:
+>
+> - **Round 1** (cold-read): NO-GO — 1 blocking (B1) + 2 minor (B2, B3), all
+>   fixed (see "(round 1/Bn)" markers).
+>   - **B1 (blocking):** § 2a's bobby-cli command table instructed
+>     `bobby-cli memory list_recent`, which is not a real subcommand —
+>     verified `src/commands/memory.ts:95-111`, the list-recent operation is
+>     exposed as `memory show` (it calls the `list_recent` MCP tool
+>     internally). Deployed as-is, `AGENTS.md` would route the bot to a
+>     command that errors "unknown command," and it contradicted SETUP Step 5
+>     (§ 1) which already used `memory show`. Fixed: table now reads
+>     `<show|recall|remember|append|forget>` with the show/list-recent
+>     mapping spelled out.
+>   - **B2 (minor):** § 2a claimed Startup Priority was "unaffected," but its
+>     item 4 routes memory "through the safe helper" — the very
+>     `session-memory-call.py` § 3 deletes. Added § 2a edit 4 to correct it.
+>   - **B3 (minor):** § 2 miscounted the live `AGENTS.md`'s stale command
+>     references as "five"; the actual count outside the helper section is six
+>     `/login`/`/setup` mentions (`/setup-memory` appears only inside the
+>     replaced helper section). Corrected.
+> - **Round 2** (verifying round 1's fixes held): NO-GO — 1 minor (C1). B3's
+>   count fix hadn't propagated to a second occurrence in the § Scope bullet
+>   (line said "five" while § 2 now said "six"); reworded to reference § 2a's
+>   enumeration instead of a brittle count. All round-1 fixes confirmed
+>   landed; no regressions.
+> - **Round 3** (final holistic re-check): **GO** — 0 blocking, 0 minor. Confirmed
+>   the four § 2a edits make success-criterion 5's "no remaining bare
+>   `/login`/`/setup`/`/setup-memory` in deployed `AGENTS.md`" grep genuinely
+>   satisfiable, and that SETUP Steps 2/3 branch on `loggedIn` (not an
+>   `ok:false` field `auth show` never returns for a valid profile — the
+>   exact class of bug spec 14 round-2/G1 caught).
+>
+> Ticket-writeable. T10–T16 (spec 15) still need re-cutting per § "Open items"
+> — that ticket plan assumed spec 14 § 3.1's four-skill layering.
 
 Builds on: [14-spec-openclaw-migration.md](./14-spec-openclaw-migration.md)
 (all content except § 3.1, superseded below), [15-spec-openclaw-migration-tickets-plan.md](./15-spec-openclaw-migration-tickets-plan.md)
@@ -68,8 +102,9 @@ folded into § 1 below.
   companion-skill check retargeted to the new single-skill layout, and —
   not just a rename — its `AGENTS.md`-writing Step 3 now carries the exact
   corrected content in § 2a, since spec 14 never fully specified that
-  text and the live file's five `/login`/`/setup`/`/setup-memory`
-  references would otherwise ship stale.
+  text and the live file's `/login`/`/setup`/`/setup-memory` command
+  references (enumerated in § 2a; count reconciled round 2/C1) would
+  otherwise ship stale.
 - New: § 2b, environment-portability review of `setup-chawengburi` (the
   owner asked this be checked explicitly, not assumed, given openClaw's
   deployment complexity).
@@ -269,15 +304,22 @@ giving exact text, and the *rest* of the file (outside that one section)
 was said to be "carried over unchanged."** Under this spec's layering,
 "unchanged" is wrong: the live `AGENTS.md` (read in full from
 `~/.openclaw/workspace/AGENTS.md` during this review, not assumed)
-contains five separate user-facing references to `/login`/`/setup`/
-`/setup-memory` outside the "Safe Session-Memory Helper" section spec 14
-already knew it was replacing. Left as-is, the deployed bot would tell
-Discord users to run commands that no longer register. § 2a below is the
-exact corrected text, closing that gap.
+contains six user-facing `/login`/`/setup` command references (round 1/B3)
+outside the "Safe Session-Memory Helper" section spec 14 already knew it was
+replacing
+— three in the Discord Identity Gate (items 4–5) and three in the "Login
+And Setup Boundaries" section (`/setup-memory` itself appears only *inside*
+the helper section, at `MEMORY_CONFIG_MISSING`, so it is covered by that
+section's replacement). It also carries one now-stale mechanism reference:
+Startup Priority item 4 routes memory "through the safe helper," the very
+`session-memory-call.py` script § 3 deletes. Left as-is, the deployed bot
+would tell Discord users to run commands that no longer register and cite a
+helper that no longer exists. § 2a below is the exact corrected text,
+closing that gap.
 
 ### § 2a. Exact `AGENTS.md` content delta
 
-Three edits to the wizard's `AGENTS.md`-writing step, against the text
+Four edits to the wizard's `AGENTS.md`-writing step, against the text
 currently live on this machine (`~/.openclaw/workspace/AGENTS.md`, read in
 full during this review):
 
@@ -311,19 +353,23 @@ spec 14 § 3.6 already flagged as changing, made concrete here:
 
 For Discord memory operations, invoke bobby-cli directly — never raw
 curl/urllib. Every call ends with `--json`; branch on the `code` field,
-never parse `text`.
+never parse `text`. The subcommands are `show` (list recent — bobby-cli
+exposes the `list_recent` operation under `memory show`, verified
+`src/commands/memory.ts:95-111`; there is no `memory list_recent`
+subcommand — round 1/B1), `recall <query>`, `remember [text]`,
+`append <id> <text>`, `forget <id>`.
 
 DM (personal memory):
 ```bash
 BOBBY_CLI_PROFILES_DIR=~/.openclaw/user-sessions \
-  bobby-cli memory <recall|list_recent|remember|append|forget> "..." \
+  bobby-cli memory <show|recall|remember|append|forget> "..." \
   --profile "$SENDER_ID" --json
 ```
 
 Guild (shared/public memory):
 ```bash
 BOBBY_CLI_PROFILES_DIR=~/.openclaw/server-sessions \
-  bobby-cli memory <recall|list_recent|remember|append|forget> "..." \
+  bobby-cli memory <show|recall|remember|append|forget> "..." \
   --profile "$GUILD_ID" --json
 ```
 
@@ -362,9 +408,20 @@ Replace with:
 - A successful setup does not expose any user's personal memory.
 ```
 
-Everything else in the current `AGENTS.md` (Startup Priority, Memory
-Behavior, Discord Response Rules, General Safety) is unaffected by this
-migration and is not reproduced here.
+**4. Startup Priority item 4 (round 1/B2)** (the one place outside the
+helper section that names the deleted helper by role rather than a slash
+command). Current text:
+```
+4. Do not read project files to answer Discord user memory questions. Discord memory must come from session-memory through the safe helper.
+```
+Replace with:
+```
+4. Do not read project files to answer Discord user memory questions. Discord memory must come from session-memory through bobby-cli (the command table below).
+```
+
+Everything else in the current `AGENTS.md` (the rest of Startup Priority,
+Memory Behavior, Discord Response Rules, General Safety) is unaffected by
+this migration and is not reproduced here.
 
 ### § 2b. Environment portability — why `setup-chawengburi` is host-agnostic, checked not assumed
 
@@ -491,15 +548,17 @@ rather than risk the same drift § 2a fixed in `AGENTS.md`.
     consolidated skill's weaker match signal (flagged in "Why this exists"
     above) doesn't silently fail to trigger.
 
-## Open items before this can be audited
+## Open items (non-blocking — do not gate implementation tickets)
+
+The `spec-refinement-advisor` audit is complete (3 rounds, round 3 GO — see
+status header). The remaining items below are content-owner polish, not
+audit blockers:
 
 - Exact wording pass on the Thai messages in § 1 (owner flagged LOGIN as
   already fine in the conversation that produced this draft; SETUP's
   wording is new in this revision and hasn't been reviewed word-for-word;
-  § 2a's `AGENTS.md` delta is new in this revision too).
-- This spec has not been through `spec-refinement-advisor`. Given spec
-  14/15's track record (NO-GO round 1 both times, several blocking
-  findings each), expect at least one revision round before this reaches
-  ACCEPTED.
-- T10–T16 (spec 15) will need re-cutting once this spec is ACCEPTED — that
-  ticket plan's file scope assumed spec 14 § 3.1's four-skill layering.
+  § 2a's `AGENTS.md` delta is new in this revision too). This is a
+  copy-review pass, not a design or correctness gap — the audit verified the
+  *commands* and *routing*, not the tone of the Thai prose.
+- T10–T16 (spec 15) will need re-cutting now that this spec is ACCEPTED —
+  that ticket plan's file scope assumed spec 14 § 3.1's four-skill layering.
