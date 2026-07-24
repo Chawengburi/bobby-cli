@@ -205,9 +205,9 @@ must be tested against realistically, not with bare keywords.
 `is_group_chat`:
 - `is_group_chat = false` (DM) → continue.
 - `is_group_chat = true` (Guild) → stop, send:
-  > ❌ `/login` ใช้ได้เฉพาะใน DM นะครับ — เพื่อความปลอดภัยของรหัสผ่าน
+  > ❌ `/bobby_cli login` ใช้ได้เฉพาะใน DM นะครับ — เพื่อความปลอดภัยของรหัสผ่าน
   >
-  > กรุณาเปิด DM กับ bot แล้วพิมพ์ `/login` ที่นั่นแทนครับ
+  > กรุณาเปิด DM กับ bot แล้วพิมพ์ `/bobby_cli login` ที่นั่นแทนครับ
 
 **Step 1 — Extract `SENDER_ID`** (value of `sender_id`) from conversation
 metadata. Do not call any tool for this — the value is already in context.
@@ -298,7 +298,7 @@ BOBBY_CLI_PROFILES_DIR=~/.openclaw/server-sessions \
 ## Action: LOGOUT (DM only)
 
 **Step 0 — Validate: DM only** (same guard as LOGIN Step 0, substituting
-`/logout` for `/login` in the message text).
+`/bobby_cli logout` for `/bobby_cli login` in the message text).
 
 **Step 1 — Extract `SENDER_ID`** (same as LOGIN Step 1).
 
