@@ -44,6 +44,19 @@
 >
 > Ticket-writeable. T10–T16 (spec 15) still need re-cutting per § "Open items"
 > — that ticket plan assumed spec 14 § 3.1's four-skill layering.
+>
+> **Post-acceptance amendment (2026-07-24, same day):** § 1 Step 0's
+> matching rule was underspecified — "match against these three literal
+> actions" didn't say whether trailing text (e.g. "login foo bar") counts
+> as a match or as ambiguity, which could have made the disambiguation
+> step fire on the single most common real phrasing of a valid request.
+> Not caught by the audit rounds above (out of the technical-claim scope
+> they were checking); found by direct question during a follow-up
+> conversation. Fixed: Step 0 now matches on the first word only,
+> explicitly discards trailing text, and states why (LOGIN's credential
+> prompt is always a separate turn, so no trailing text is ever mistaken
+> for a password). Small enough to not warrant a fourth full audit round,
+> but noted here rather than silently folded into "round 3."
 
 Builds on: [14-spec-openclaw-migration.md](./14-spec-openclaw-migration.md)
 (all content except § 3.1, superseded below), [15-spec-openclaw-migration-tickets-plan.md](./15-spec-openclaw-migration-tickets-plan.md)
@@ -160,24 +173,39 @@ metadata:
 
 ## Step 0 — Determine the requested action
 
-Match the user's message (the text after `/bobby_cli`, or the plain-text
-message if invoked without a slash) against exactly these three literal
-actions:
+**Matching rule (found underspecified in a later review — pinned down
+here rather than left to per-model interpretation):** take the **first
+word** of the user's message (the text after `/bobby_cli`, or the
+plain-text message if invoked without a slash), case-insensitive, and
+match *only that first word* against the table below. This mirrors
+openClaw's own slash-command router (`resolveSkillCommandInvocation`,
+verified in "Why this exists" above), which already splits `/login foo
+bar` into commandName `login` + trailing args `foo bar` — Step 0 uses the
+same convention for consistency rather than inventing a second one.
 
-| User said (any of) | Action |
+| First word (any of) | Action |
 |---|---|
 | `login`, "เข้าสู่ระบบ", "ล็อกอิน" | LOGIN |
 | `setup`, "ตั้งค่า", "เชื่อมต่อ" | SETUP |
 | `logout`, "ออกจากระบบ", "ล็อกเอาท์" | LOGOUT |
 
-**If none of these match clearly, or the message is ambiguous — STOP and
-ask, do not guess:**
+**Anything after the first word is discarded, not interpreted.** E.g.
+"login foo bar" matches LOGIN on the first word; "foo bar" is dropped —
+it is never treated as an inline email/password shortcut. LOGIN's Step 2
+always asks for credentials as its own separate follow-up turn (spec 14
+§ 3.3), so there is no path by which trailing text after the action word
+could be mistaken for a credential and, e.g., echoed back or logged.
+
+**If the first word matches none of the above, or the message has no
+clear first word at all (empty, punctuation-only, etc.) — STOP and ask,
+do not guess:**
 > ต้องการ **login** (เข้าสู่ระบบส่วนตัว), **setup** (เชื่อมต่อ server), หรือ **logout** (ออกจากระบบ) ครับ? พิมพ์คำใดคำหนึ่ง
 
 This is the single highest-risk step in this skill — misrouting `login`
 text into the SETUP branch (or vice versa) points a Discord user's
 password-derived token at the wrong shared identity. No fallback default;
-ambiguity always asks.
+true ambiguity always asks — but "login" plus harmless trailing words is
+not ambiguous and must not trigger a redundant re-ask.
 
 ---
 
