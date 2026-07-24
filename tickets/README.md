@@ -157,4 +157,149 @@ ticket above, regardless of how related they may seem while implementing:
   decided consolidation of openClaw's separate login/forget skills into
   the one bobby-cli skill (2026-07-18). This ticket set only produces the
   chawengburi-repo skill; the migration itself is a separate future effort
-  with its own spec.
+  with its own spec — see the T17–T21 section below.
+
+---
+
+# openClaw migration tickets: spec 16 (T17–T21)
+
+Source: `bobby-cli/specs/16-spec-openclaw-consolidated-skill.md` (ACCEPTED
+2026-07-24, 3 audit rounds + 2 post-acceptance amendments). Builds on and
+supersedes spec 14 § 3.1 (spec 14 itself ACCEPTED 2026-07-20, 3 audit
+rounds) — spec 16 inherits every section of spec 14 except § 3.1 (layering)
+and the parts of § 3.4/§ 3.6 that change forces to move.
+
+Same self-containment standard as T01–T09 above: exact file paths, exact
+contracts copied inline (not just referenced), mechanically checkable
+acceptance criteria, explicit out-of-scope. The "Implementation workflow"
+section above applies to these tickets too, with one addition: several of
+these tickets have **live-Discord-turn** acceptance criteria in addition
+to file-content criteria — read each ticket's own live-test-safety /
+pre-flight sections before running those, don't skip straight to file
+edits and call it done.
+
+## Retired: T10–T13 (spec 15's four-skill layering) — IDs not reused
+
+A prior spec, `specs/15-spec-openclaw-migration-tickets-plan.md`, had
+allocated ticket IDs T10–T16 for spec 14 § 3.1's original design: a
+non-invocable `bobby-cli` reference skill plus four separate invocable
+skills (`login`, `setup`, `logout`, `setup-memory`). That plan's ticket
+files were never written — spec 16 (2026-07-24) superseded spec 14 § 3.1
+before implementation began, replacing the four-skill layering with one
+consolidated invocable `bobby-cli` skill (§ 1) plus a separately-renamed
+`setup-chawengburi` (§ 2). `specs/15-spec-openclaw-migration-tickets-plan.md`
+itself was drafted but never committed and does not exist in this repo;
+the table below is reconstructed from the design-decision record in
+spec 16's own header, which is the authoritative source for what T10–T16
+were for.
+
+Per this project's own established precedent (see T08's retirement note
+above): **retired tickets are not reused.** T10–T13 are retired outright —
+their functional intent is fully superseded by T17 below, which
+implements all three actions (login/setup/logout) as one file rather than
+three separate ones, so there is no direct old-ticket-to-new-ticket
+mapping for these four. T14–T16 are not retired — their intent carries
+forward, retargeted to this spec's layering, under new IDs (T17–T21 start
+at T17 since T16 is the last ID spec 15 allocated, even though T16 itself
+is being retargeted rather than reused verbatim — starting clean at T17
+keeps it unambiguous that these are new tickets against a new design, not
+edits to ticket files that were never written).
+
+| Old ID | Was for (spec 15 plan, spec 14 § 3.1 layering) | Disposition |
+|---|---|---|
+| T10 | Non-invocable `bobby-cli/SKILL.md` reference skill + Discord-bot-credential pre-flight check | **Retired** — spec 16's `bobby-cli` skill is user-invocable, not a reference skill; a different file with a different purpose (§ 1). Pre-flight check's *intent* carried forward into **T17** (the first ticket in the new set needing live-Discord-turn testing). |
+| T11 | `/login` rewrite (thin skill) | **Retired** — folded into **T17**'s LOGIN action. |
+| T12 | `/setup` rewrite (thin skill) | **Retired** — folded into **T17**'s SETUP action. |
+| T13 | `/logout` new skill | **Retired** — folded into **T17**'s LOGOUT action. |
+| T14 | `/setup-memory` rewrite (env config, `AGENTS.md` rewrite, bootstrap login, companion-skill check, smoke test, delete `session-memory-call.py`) | **Retargeted → T18** (`setup-chawengburi`, spec 16 § 2/§ 2a/§ 2b). |
+| T15 | Migration: delete pre-existing legacy `~/.openclaw/user-sessions/*.json` / `server-sessions/*.json` files | **Retargeted → T20** (spec 14 § 3.7, inherited unchanged by spec 16). |
+| T16 | Verification: live-exercise the spec 14 success criteria in this sandbox | **Retargeted → T21** (spec 16's own self-contained 10-item success-criteria list, § "Success criteria"). |
+
+**New in spec 16's layering, no old-ID equivalent:** T19 (archive
+`login/`/`setup/`/`setup-memory/` into `old_skills/`, spec 16 § 3) — the
+retired four-skill plan rewrote `login`/`setup` in place and added
+`logout` alongside them, so it never needed an archival step. The
+consolidation is what creates three now-redundant directories that need
+somewhere inert to go.
+
+## Note on repo boundaries (T17–T21)
+
+- **T17, T18, T19** modify `~/.openclaw/workspace/` (openClaw's skill
+  workspace) — **a separate git repo from `bobby-cli`**, confirmed clean
+  on `main` (`90debb4 feat: add /forget skill for magic link password
+  reset`) at the time these tickets were written, per spec 15's own audit
+  (restated in spec 16 § 3). Not the `bobby-cli` CLI repo, not the
+  `chawengburi` project repo that owns T07's `SKILL.md`.
+- **T20** touches `~/.openclaw/user-sessions/` and
+  `~/.openclaw/server-sessions/` — runtime state directories, not inside
+  any git repo at all.
+- **T21** spans the openClaw workspace repo (read-only checks) plus a live
+  Discord server/DM on this sandbox's bot — no repo is primary.
+- This machine's `~/.openclaw` install is a **local test sandbox, not
+  production** (production runs on Linux/Docker, a separate host and
+  repo — spec 15's audit, restated in spec 16 § 2b). Every live-Discord-turn
+  acceptance criterion in T17–T21 carries this constraint; see each
+  ticket's pre-flight/live-test-safety section before running one.
+
+## Implementation order and dependencies
+
+```
+T17 (bobby-cli/SKILL.md — consolidated login+setup+logout skill,
+     + Discord-bot-credential pre-flight gate, + one live LOGIN smoke test)
+  │
+  └──> T18 (setup-chawengburi/SKILL.md — renamed from setup-memory,
+       │     + the 4-edit AGENTS.md delta — needs T17 since its own text
+       │     and companion-skill check reference /bobby_cli login|setup
+       │     and skills/bobby-cli/SKILL.md)
+       │
+       ├──> T19 (archive login/, setup/, setup-memory/ into old_skills/ —
+       │         must land after replacements exist, not before)
+       │
+       ├──> T20 (delete pre-existing legacy user-sessions/server-sessions
+       │         files — no hard technical dependency on T17/T18, but
+       │         sequenced after so "first post-migration login" is
+       │         meaningful, and independent of T19)
+       │
+       └──> T21 (verification: live-exercise all 10 spec 16 success
+                  criteria, including realistic full-Thai-sentence
+                  model-invocation tests and the §2b fresh-$HOME
+                  portability check — needs T17+T18+T19+T20 all landed)
+```
+
+| # | Ticket | Type | Priority | Complexity | Depends on |
+|---|---|---|---|---|---|
+| T17 | [`bobby-cli/SKILL.md` — consolidated skill (login+setup+logout) + Discord-bot-credential pre-flight gate](./T17-bobby-cli-consolidated-skill.md) | Feature | Critical | L | — |
+| T18 | [`setup-chawengburi/SKILL.md` (renamed from `setup-memory`) + `AGENTS.md` rewrite](./T18-setup-chawengburi-agents-md.md) | Feature | Critical | L | T17 |
+| T19 | [Archive `login/`, `setup/`, `setup-memory/` into `old_skills/`](./T19-archive-legacy-skills.md) | Chore | High | S | T17, T18 |
+| T20 | [Delete pre-existing legacy `user-sessions`/`server-sessions` files](./T20-legacy-session-file-deletion.md) | Chore | Critical | XS | T17, T18 (sequencing only) |
+| T21 | [Verification: live-exercise all 10 spec 16 success criteria](./T21-verification-live-success-criteria.md) | Task | Critical | M | T17, T18, T19, T20 |
+
+5 tickets total (T17–T21). T10–T13 retired, IDs not reused (see table
+above). T14–T16 retargeted to T18/T20/T21 respectively, also not reused as
+literal IDs — T17–T21 are freshly-cut tickets against spec 16's design,
+not edits to files that were never written.
+
+## Deliberately out of scope (T17–T21) — do not create tickets for these
+
+- **Real admin-role enforcement on the SETUP action.** Spec 16 explicitly
+  decided against this (§ "Explicitly decided against, this conversation")
+  — the live `/setup` skill's frontmatter says "Admin-only" but no role or
+  permission check exists anywhere today, and openClaw's `ctx.MemberRoleIds`
+  would need new config this project doesn't have. Revisit if this ever
+  needs to be a real ticket; not part of T17–T21.
+- **A session-file format converter** for the pre-existing legacy
+  `user-sessions`/`server-sessions` files — spec 14 § Decisions item 2
+  explicitly decided against this (one-time re-login instead). Revisit
+  only if a real production Discord user base exists by the time this
+  actually ships (it doesn't today).
+- **Real Docker/Linux production host testing**, or testing against
+  production's real `AUTH_CENTER`/`SESSION_MEMORY_URL` — spec 16 § 2b
+  explicitly does not claim this is verified; out of scope for this
+  sandbox-only ticket set, same boundary specs 14/15 already established.
+- **The exact Thai-wording copy-review pass** spec 16 itself lists as
+  open, non-blocking polish (§ "Open items") — T17–T21 verify *behavior*
+  (correct routing, correct action resolution), not final tone/prose
+  quality of the Thai messages.
+- **`/forget`** (openClaw's password-reset flow) — spec 16 § 3.5
+  inheritance: no bobby-cli involvement exists or is proposed; untouched
+  by this ticket set.
