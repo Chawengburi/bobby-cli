@@ -104,7 +104,7 @@ bobby-cli --version
 - Succeeds (prints a version) → continue to Step 1.
 - Fails (not found / errors) → attempt automatic install:
   ```
-  npm install -g bobby-cli
+  npm install -g @babyferret/bobby-cli
   ```
   Then re-check:
   ```
@@ -117,7 +117,7 @@ bobby-cli --version
 
 This three-command sequence deliberately uses no bash-specific syntax
 (no `VAR=value` prefix, no `~` expansion, no `&&`) — both `bobby-cli
---version` and `npm install -g bobby-cli` are plain program invocations,
+--version` and `npm install -g @babyferret/bobby-cli` are plain program invocations,
 valid under POSIX shells (Linux/macOS/Docker) and PowerShell (Windows)
 alike, per spec 16 § 2 amendment 4.
 

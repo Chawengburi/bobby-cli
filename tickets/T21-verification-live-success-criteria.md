@@ -93,7 +93,7 @@ file (T18's `AGENTS.md` Edit 1 item 5), not just reports the error.
 HOME=$(mktemp -d) bobby-cli --version
 ```
 Confirm this fails cleanly with a message equivalent to the documented
-admin message ("`npm install -g bobby-cli` first") when `bobby-cli` isn't
+admin message ("`npm install -g @babyferret/bobby-cli` first") when `bobby-cli` isn't
 resolvable relative to that fake `HOME`'s `PATH` expectations, or
 succeeds identically to normal if `bobby-cli` is genuinely on the global
 `PATH` (global installs aren't `HOME`-scoped — if so, note this and

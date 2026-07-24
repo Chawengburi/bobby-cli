@@ -101,7 +101,7 @@
 > are real but purely declarative — `openclaw skills check`/`info` only
 > *display* missing-dependency hints for a human to act on; nothing
 > executes an `install` spec automatically. Real fix: § 2's Step 0 now
-> attempts `npm install -g bobby-cli` itself when missing, scoped only to
+> attempts `npm install -g @babyferret/bobby-cli` itself when missing, scoped only to
 > `setup_chawengburi` (not `bobby-cli`'s own actions — see § 2's reasoning
 > on why that boundary matters). Separately, verified openClaw's actual
 > exec shell is OS-dependent (`shell-utils-DKmnHE0C.js`): POSIX on Linux/
@@ -421,7 +421,7 @@ original two, § 2a's content fix, and amendment 4's Step 0 auto-install):
    - Succeeds → continue to Step 1.
    - Fails → attempt install:
      ```
-     npm install -g bobby-cli
+     npm install -g @babyferret/bobby-cli
      ```
      Then re-check with the same `bobby-cli --version` command.
      - Now succeeds → continue to Step 1.
@@ -436,7 +436,7 @@ original two, § 2a's content fix, and amendment 4's Step 0 auto-install):
    shell differs by host OS — POSIX (`sh`/`bash`/`zsh`) on Linux/macOS/
    Docker, but **PowerShell** (`pwsh.exe`, falling back to
    `powershell.exe`) on Windows. `bobby-cli --version` and
-   `npm install -g bobby-cli` are plain program invocations, valid
+   `npm install -g @babyferret/bobby-cli` are plain program invocations, valid
    unchanged under either shell family — so this one step is genuinely
    cross-platform without needing OS branching.
 
