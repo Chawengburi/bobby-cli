@@ -92,6 +92,28 @@
 > the alternative — quietly fixing it without noting that a fully-audited,
 > ACCEPTED spec shipped a wrong technical claim — would undermine the
 > point of this project's whole audit ritual.
+>
+> **Post-acceptance amendment 4 (2026-07-24, same day).** Owner asked
+> whether `setup_chawengburi` (or `bobby-cli`) could auto-install
+> `bobby-cli` itself, recalling openClaw skills that "install themselves,"
+> and to verify this works across Docker/Linux/macOS/Windows. Checked, not
+> assumed: openClaw's `requires`/`install`/`os` skill-frontmatter fields
+> are real but purely declarative — `openclaw skills check`/`info` only
+> *display* missing-dependency hints for a human to act on; nothing
+> executes an `install` spec automatically. Real fix: § 2's Step 0 now
+> attempts `npm install -g bobby-cli` itself when missing, scoped only to
+> `setup_chawengburi` (not `bobby-cli`'s own actions — see § 2's reasoning
+> on why that boundary matters). Separately, verified openClaw's actual
+> exec shell is OS-dependent (`shell-utils-DKmnHE0C.js`): POSIX on Linux/
+> macOS/Docker, **PowerShell** on Windows — the auto-install step itself
+> is written to be safe under both, but this surfaced a real, larger,
+> **unresolved** gap: every other command block in `bobby-cli`/
+> `setup-chawengburi`'s SKILL.md files uses POSIX-only syntax that would
+> not run correctly under PowerShell as written. Documented honestly as
+> an open gap (§ 2), not fixed here — out of scope for today's specific
+> ask, and production is Linux/Docker per spec 15 so it may not matter in
+> practice, but it is real and should not be assumed away if a Windows
+> host is ever targeted.
 
 Builds on: [14-spec-openclaw-migration.md](./14-spec-openclaw-migration.md)
 (all content except § 3.1, superseded below), [15-spec-openclaw-migration-tickets-plan.md](./15-spec-openclaw-migration-tickets-plan.md)
@@ -378,9 +400,8 @@ renames the file.
 
 `~/.openclaw/workspace/skills/setup-chawengburi/SKILL.md` — registers as
 **`/setup_chawengburi`** (sanitization, § "Why this exists" above).
-Content is spec 14 § 3.6, with three retargets — **not** "verbatim except
-two," corrected below (the original two plus § 2a's content fix, since
-Step 3 was never fully specified in spec 14 to begin with):
+Content is spec 14 § 3.6, with **four** retargets — corrected below (the
+original two, § 2a's content fix, and amendment 4's Step 0 auto-install):
 
 1. Step 4's companion-skill check (spec 14 § 3.6, "Step 4 — confirm
    companion skills exist") changes from checking three separate files to
@@ -391,6 +412,59 @@ Step 3 was never fully specified in spec 14 to begin with):
 2. Every place spec 14 § 3.6 says "`/login`" or "`/setup`" in user-facing
    message text outside the `AGENTS.md`-writing step is retargeted to
    "`/bobby_cli login`" / "`/bobby_cli setup`".
+3. **(Amendment 4, 2026-07-24)** Step 0 changes from "check, and if
+   missing, stop and tell the admin to install manually" to "check, and if
+   missing, attempt the install itself, then re-check":
+   ```
+   bobby-cli --version
+   ```
+   - Succeeds → continue to Step 1.
+   - Fails → attempt install:
+     ```
+     npm install -g bobby-cli
+     ```
+     Then re-check with the same `bobby-cli --version` command.
+     - Now succeeds → continue to Step 1.
+     - Still fails → stop, show the admin the actual install-attempt error
+       text, and suggest checking that Node.js/npm are present on this
+       host at all (bobby-cli needs Node ≥18) before retrying.
+
+   **Why this three-command sequence and not something more elaborate:**
+   deliberately contains no bash-specific syntax — no `VAR=value`
+   env-prefix, no `~` expansion, no `&&` chaining. Verified in openClaw's
+   own `shell-utils-DKmnHE0C.js` (`getShellConfig`): the default exec
+   shell differs by host OS — POSIX (`sh`/`bash`/`zsh`) on Linux/macOS/
+   Docker, but **PowerShell** (`pwsh.exe`, falling back to
+   `powershell.exe`) on Windows. `bobby-cli --version` and
+   `npm install -g bobby-cli` are plain program invocations, valid
+   unchanged under either shell family — so this one step is genuinely
+   cross-platform without needing OS branching.
+
+   **This does not make the rest of this skill (or `bobby-cli/SKILL.md`)
+   Windows-safe — flagged honestly, not silently assumed away.** Every
+   other command block in both files uses POSIX-only syntax
+   (`BOBBY_CLI_PROFILES_DIR=~/.openclaw/... command`,
+   `~`-relative paths) that would fail as written under PowerShell.
+   Fixing that is a materially larger effort (rewriting or
+   OS-branching every command block across two files) than today's
+   specific ask (auto-install), and is explicitly out of scope for this
+   amendment. Production runs on Linux/Docker (spec 15), so this gap may
+   never matter in practice — but it is a real, open gap, not a solved
+   one, and should get its own ticket if a Windows host ever becomes a
+   real deployment target.
+
+   **Why this lives only in `setup-chawengburi`, not in `bobby-cli`'s own
+   actions too:** considered and rejected. `setup-chawengburi` is already
+   an admin-gated, one-time bootstrap that does consequential host-level
+   things (writes `.env`, rewrites `AGENTS.md`, deletes a script) — a
+   global `npm install -g` fits its existing trust level. `bobby-cli`'s
+   LOGIN/SETUP/LOGOUT actions are meant for any Discord user, including
+   non-technical staff (§ 1's own "Why this exists"); letting an ordinary
+   DM message silently trigger a global package install on the host
+   would cross a real trust boundary the rest of this design has been
+   careful about. If a user hits "`bobby-cli` not found" from `bobby_cli`
+   directly, the existing behavior (tell them to ask an admin to run
+   `/setup_chawengburi`) is correct and unchanged.
 3. Step 3's `AGENTS.md`-writing content is § 2a below, not spec 14's
    under-specified "replaced by the command table" description.
 

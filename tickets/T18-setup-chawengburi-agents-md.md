@@ -96,13 +96,30 @@ so `/bobby_cli login`/`/bobby_cli setup` work.
 
 ---
 
-## Step 0 — bobby-cli present on this host
+## Step 0 — bobby-cli present on this host, auto-install if missing (2026-07-24 amendment 4)
 
-```bash
+```
 bobby-cli --version
 ```
-Missing/not on `PATH` → tell the admin to `npm install -g bobby-cli` first
-and stop. Every later step assumes this succeeded.
+- Succeeds (prints a version) → continue to Step 1.
+- Fails (not found / errors) → attempt automatic install:
+  ```
+  npm install -g bobby-cli
+  ```
+  Then re-check:
+  ```
+  bobby-cli --version
+  ```
+  - Now succeeds → continue to Step 1.
+  - Still fails → stop, show the admin the actual error text from the
+    install attempt, and suggest checking that Node.js/npm (≥18) are
+    present on this host at all before retrying `/setup_chawengburi`.
+
+This three-command sequence deliberately uses no bash-specific syntax
+(no `VAR=value` prefix, no `~` expansion, no `&&`) — both `bobby-cli
+--version` and `npm install -g bobby-cli` are plain program invocations,
+valid under POSIX shells (Linux/macOS/Docker) and PowerShell (Windows)
+alike, per spec 16 § 2 amendment 4.
 
 ---
 
