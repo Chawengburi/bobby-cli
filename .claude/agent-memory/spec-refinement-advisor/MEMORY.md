@@ -1,0 +1,1 @@
+- [Command-name drift](feedback_command-name-drift.md) — openClaw specs recurringly ship wrong CLI/slash command names in deployed AGENTS.md; re-derive from live files + bobby-cli src
