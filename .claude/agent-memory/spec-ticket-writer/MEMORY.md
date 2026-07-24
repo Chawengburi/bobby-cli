@@ -1,0 +1,2 @@
+- [openClaw secrets caution](feedback_openclaw_secrets.md) — never wholesale-print ~/.openclaw/openclaw.json or .env; they hold live plaintext tokens
+- [bobby-cli tickets/ conventions](project_bobby_cli_ticket_conventions.md) — retirement-not-reuse for IDs, self-contained inline contracts, repo-boundary notes

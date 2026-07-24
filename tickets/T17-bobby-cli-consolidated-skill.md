@@ -46,10 +46,16 @@ actual live Discord turn (AC8 below).
     outright in the loader's "compact" prompt fallback (drops
     descriptions, keeps only `<name>`/`<location>`). Step 0 below is the
     mitigation.
-  - **Skill discovery is exactly one directory level deep** — this is why
-    the archival plan (T19, separate ticket) works: an archived skill two
-    levels down (`skills/old_skills/login/SKILL.md`) is structurally never
-    discovered by `loadSkillsFromDirSafe`/`listCandidateSkillDirs`.
+  - ~~Skill discovery is exactly one directory level deep~~ — **wrong,
+    corrected 2026-07-24 (spec 16 amendment 3) after this was tested live
+    during this ticket's own implementation.** Workspace skill discovery
+    actually runs a recursive "grouped skill scan" up to 6 directory
+    levels deep, not one. Archiving `login`/`setup` into
+    `skills/old_skills/` alone did **not** deactivate them — confirmed via
+    `openclaw skills info login` still reporting `Available as command:
+    yes` after the move. T19 (separate ticket) is corrected to rename
+    `SKILL.md` to `SKILL.md.bak` on archival, which is depth-independent —
+    see spec 16 § 3 for the full correction.
 - Retired: old plan `T10` (spec 15, never implemented) covered a
   *non-invocable reference* `bobby-cli/SKILL.md` plus this same
   Discord-bot-credential pre-flight check. `T10` is formally retired (see

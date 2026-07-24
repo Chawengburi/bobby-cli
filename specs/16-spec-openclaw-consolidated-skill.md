@@ -72,6 +72,26 @@
 > exists") is the **primary** trigger path, not a slash-command fallback —
 > success criterion 10 below now requires testing with realistic
 > full-sentence Thai phrasing, not bare keywords.
+>
+> **Post-acceptance amendment 3 (2026-07-24, same day) — corrects a real
+> error that passed all 3 audit rounds.** § 3's "one directory level deep"
+> claim about openClaw's skill loader was wrong. Found live, not by
+> re-reading: implementing T17 and testing an actual DM login went through
+> the *old* `login/SKILL.md`, not the new consolidated skill, because
+> `login/`/`setup/` were still present. Archiving them into `old_skills/`
+> (exactly as § 3 originally specified) did **not** fix it — `openclaw
+> skills info login` still reported the archived skill as `Available as
+> command: yes`. Root cause: workspace skill discovery actually runs
+> through a separate, recursive scan (`MAX_GROUPED_SKILL_SCAN_DEPTH = 6`)
+> that this spec and all 3 audit rounds missed, having traced a different,
+> simpler loader function that isn't the one actually used here. § 3 is
+> corrected below: the archival mechanism now renames `SKILL.md` to
+> `SKILL.md.bak` (depth-independent — the loader requires that exact
+> filename to exist), not just directory nesting. T19 (the ticket
+> implementing this) is corrected to match. Flagging this plainly because
+> the alternative — quietly fixing it without noting that a fully-audited,
+> ACCEPTED spec shipped a wrong technical claim — would undermine the
+> point of this project's whole audit ritual.
 
 Builds on: [14-spec-openclaw-migration.md](./14-spec-openclaw-migration.md)
 (all content except § 3.1, superseded below), [15-spec-openclaw-migration-tickets-plan.md](./15-spec-openclaw-migration-tickets-plan.md)
@@ -540,25 +560,55 @@ and stay out of scope here, same as they were for spec 14/15.
 **Decided (this conversation):** archive rather than delete. Move (not
 copy — `~/.openclaw/workspace/skills/` is its own git repo, confirmed
 clean on `main` per spec 15's audit; use `git mv` to preserve history) the
-three superseded skill directories, unmodified, into a new `old_skills/`
-subfolder:
+three superseded skill directories into a new `old_skills/` subfolder,
+**and** rename each directory's `SKILL.md` to `SKILL.md.bak` (see the
+corrected mechanism below — directory nesting alone is not sufficient):
 
 ```
-~/.openclaw/workspace/skills/old_skills/login/SKILL.md          (was skills/login/)
-~/.openclaw/workspace/skills/old_skills/setup/SKILL.md           (was skills/setup/)
-~/.openclaw/workspace/skills/old_skills/setup-memory/SKILL.md    (was skills/setup-memory/)
+~/.openclaw/workspace/skills/old_skills/login/SKILL.md.bak          (was skills/login/SKILL.md)
+~/.openclaw/workspace/skills/old_skills/setup/SKILL.md.bak           (was skills/setup/SKILL.md)
+~/.openclaw/workspace/skills/old_skills/setup-memory/SKILL.md.bak    (was skills/setup-memory/SKILL.md)
 ```
 
-**Verified safe, not assumed:** openClaw's skill loader
-(`loadSkillsFromDirSafe`/`listCandidateSkillDirs`) scans exactly one
-directory level under `skills/` — root check, then one
-`loadSingleSkillDirectory` pass per immediate child. `old_skills/` itself
-has no `SKILL.md`, and its children (`old_skills/login/`, etc.) are a
-second level down that the loader never reaches. These three directories
-are therefore fully inert once moved — not discovered, not registered as
-commands, not listed in `<available_skills>` for model-invocation — while
-remaining on disk verbatim for reference/rollback. `forget/` is not moved
-(unchanged, still active).
+**Correction (2026-07-24, amendment 3 — the original claim below this line
+was wrong and passed 3 audit rounds anyway; kept here struck through rather
+than silently deleted, per this project's own practice of not hiding
+mistakes):**
+
+> ~~**Verified safe, not assumed:** openClaw's skill loader
+> (`loadSkillsFromDirSafe`/`listCandidateSkillDirs`) scans exactly one
+> directory level under `skills/`... `old_skills/` itself has no
+> `SKILL.md`, and its children... are a second level down that the loader
+> never reaches. These three directories are therefore fully inert once
+> moved...~~
+
+This was tested live during T17 implementation and found **false**.
+`loadSkillsFromDirSafe`/`listCandidateSkillDirs` is a real function, but
+it is not the one workspace skill discovery actually uses. The real path
+is a separate, recursive "grouped skill scan" inside `loadSkillEntries`'s
+`loadSkills` closure (same file,
+`workspace-P8p68RCT.js`): any candidate directory lacking its own
+`SKILL.md` is treated as a *grouping* directory and its children are
+queued for further scanning, up to `MAX_GROUPED_SKILL_SCAN_DEPTH = 6`
+levels deep — `old_skills/login/SKILL.md` at depth 2 was well within
+range. `openclaw skills info login` confirmed this directly: `Source:
+openclaw-workspace`, `Path: ~/.openclaw/workspace/skills/old_skills/login/
+SKILL.md`, `Available as command: yes`. Directory nesting alone, at any
+depth up to 6, does not deactivate a skill.
+
+**Corrected mechanism:** the loader's discovery requires a file literally
+named `SKILL.md` (`fs.existsSync(path.join(candidateDir, "SKILL.md"))`) —
+this check is independent of nesting depth. Renaming the file to
+`SKILL.md.bak` is what makes a skill genuinely inert, at any directory
+depth. This also matches this project's own existing convention for
+disabled config (`~/.openclaw/workspace/AGENTS.md.bak.*` already uses this
+pattern). The `old_skills/` directory nesting is kept for human
+organization (so archived skills are still easy to find and restore by
+reversing both the `git mv` and the rename), not because nesting itself
+provides any deactivation — that guarantee comes entirely from the `.bak`
+rename.
+
+`forget/` is not moved (unchanged, still active).
 
 ---
 
