@@ -255,12 +255,12 @@ BOBBY_CLI_PROFILES_DIR=~/.openclaw/user-sessions \
 `loggedIn:true` → proceed to Completion. `loggedIn:false` → tell the user:
 > ⚠️ บันทึก session ไม่สำเร็จ — กรุณาลองใหม่
 
-**Completion:**
+**Completion (2026-07-24 revision — dropped the guild-setup mention the
+owner flagged as unnecessary for a DM user to hear; admins already know
+to run their own setup, this isn't the DM user's concern):**
 > ✅ **Login สำเร็จแล้ว!**
 >
 > ตอนนี้ personal memory ของคุณพร้อมใช้งานใน DM นี้แล้วครับ — ครั้งต่อไปที่ DM มาฉันจะจำคุณได้ทันที
->
-> ถ้าต้องการใช้ memory ใน guild channel ให้ admin ของ server รัน `/bobby_cli setup` แยกต่างหาก
 
 Then start a new session (`{ "action": "new" }`). Do NOT use
 session-memory tools after this point.
@@ -363,9 +363,10 @@ everything else in those two actions.
    verbatim as printed above.
 4. Given the file body, then the LOGIN action's DM-only guard message, the
    `bobby-cli auth login` command block (with `--profile "$SENDER_ID"
-   --label "discord-dm-$SENDER_ID"`), and the completion message
-   (including the corrected `/bobby_cli setup` line, not a bare `/setup`)
-   match the content above exactly.
+   --label "discord-dm-$SENDER_ID"`), and the completion message (2026-07-24
+   revision: no guild-setup mention — a DM user doesn't need to be told
+   `/bobby_cli setup` exists, that's the admin's own concern) match the
+   content above exactly.
 5. Given the file body, then the SETUP action's Step 2 idempotency check
    (`bobby-cli auth show --profile "$GUILD_ID"`), Step 3's "shared team
    token missing" message (naming `/setup_chawengburi`, not `/setup-memory`
