@@ -45,18 +45,33 @@
 > Ticket-writeable. T10–T16 (spec 15) still need re-cutting per § "Open items"
 > — that ticket plan assumed spec 14 § 3.1's four-skill layering.
 >
-> **Post-acceptance amendment (2026-07-24, same day):** § 1 Step 0's
+> **Post-acceptance amendment 1 (2026-07-24, same day):** § 1 Step 0's
 > matching rule was underspecified — "match against these three literal
 > actions" didn't say whether trailing text (e.g. "login foo bar") counts
 > as a match or as ambiguity, which could have made the disambiguation
 > step fire on the single most common real phrasing of a valid request.
 > Not caught by the audit rounds above (out of the technical-claim scope
 > they were checking); found by direct question during a follow-up
-> conversation. Fixed: Step 0 now matches on the first word only,
-> explicitly discards trailing text, and states why (LOGIN's credential
-> prompt is always a separate turn, so no trailing text is ever mistaken
-> for a password). Small enough to not warrant a fourth full audit round,
-> but noted here rather than silently folded into "round 3."
+> conversation. Fixed at the time: Step 0 matched on the first word only,
+> discarding trailing text.
+>
+> **Post-acceptance amendment 2 (2026-07-24, same day) — supersedes
+> amendment 1's rule, not just its wording.** The owner clarified the
+> real end users of this bot: non-technical staff (housekeeping, front-
+> desk/counter service), not developers — who type full natural Thai
+> sentences ("อยากจะ login ค่ะ"), not bare commands. Amendment 1's
+> first-word-only rule, while it correctly fixed "login foo bar," fails
+> every one of those realistic phrasings (the first word is "อยากจะ," not
+> the action word) — a worse regression for the actual audience than the
+> bug it fixed. Step 0 now matches intent from the whole message (anchor
+> words, not positional/exhaustive), still never infers a credential from
+> surrounding text, and only asks to disambiguate on a genuinely
+> no-signal or multiple-competing-signal message. Also newly documented,
+> not previously stated this plainly: for this audience, the plain-text
+> model-invocation path (weaker for a consolidated skill, per "Why this
+> exists") is the **primary** trigger path, not a slash-command fallback —
+> success criterion 10 below now requires testing with realistic
+> full-sentence Thai phrasing, not bare keywords.
 
 Builds on: [14-spec-openclaw-migration.md](./14-spec-openclaw-migration.md)
 (all content except § 3.1, superseded below), [15-spec-openclaw-migration-tickets-plan.md](./15-spec-openclaw-migration-tickets-plan.md)
@@ -173,39 +188,74 @@ metadata:
 
 ## Step 0 — Determine the requested action
 
-**Matching rule (found underspecified in a later review — pinned down
-here rather than left to per-model interpretation):** take the **first
-word** of the user's message (the text after `/bobby_cli`, or the
-plain-text message if invoked without a slash), case-insensitive, and
-match *only that first word* against the table below. This mirrors
-openClaw's own slash-command router (`resolveSkillCommandInvocation`,
-verified in "Why this exists" above), which already splits `/login foo
-bar` into commandName `login` + trailing args `foo bar` — Step 0 uses the
-same convention for consistency rather than inventing a second one.
+**Who actually types this matters (2026-07-24 amendment 2 — corrects
+amendment 1's "first word only" rule, which was itself a fix for a real
+bug but wrong for the real audience).** The intended end users of this
+bot are non-technical staff — e.g. housekeeping, front-desk/counter
+service — not developers. They will not reliably type bare commands.
+They will type full, polite, natural sentences, usually in Thai: *"อยากจะ
+login ค่ะ"*, *"ขอเข้าสู่ระบบหน่อยครับ"*, *"ช่วย setup ให้หน่อยได้ไหมคะ"*.
+A first-word-only rule fails every one of these (the first word is
+"อยากจะ"/"ขอ"/"ช่วย", not the action word) and would make the
+disambiguation question fire on the single most common real phrasing of
+a perfectly clear request — worse UX than what it was fixing.
 
-| First word (any of) | Action |
+**Matching rule:** determine intent from the **whole message**, in
+whatever position and grammatical wrapping the action word appears —
+Thai or English, formal or casual. The table below is a set of
+**illustrative anchor words**, not an exhaustive literal whitelist or a
+positional rule; if the message clearly expresses one of these three
+intents using different wording than the examples, that still counts as
+a match. This deliberately leans on the model's own language
+understanding rather than fighting it with rigid string matching —
+appropriate here specifically because the executor is an LLM reading a
+script, not a regex parser.
+
+| Anchor words (illustrative, not exhaustive) | Action |
 |---|---|
-| `login`, "เข้าสู่ระบบ", "ล็อกอิน" | LOGIN |
-| `setup`, "ตั้งค่า", "เชื่อมต่อ" | SETUP |
-| `logout`, "ออกจากระบบ", "ล็อกเอาท์" | LOGOUT |
+| "login", "เข้าสู่ระบบ", "ล็อกอิน", "เข้าระบบ" | LOGIN |
+| "setup", "ตั้งค่า", "เชื่อมต่อ", "ผูก server" | SETUP |
+| "logout", "ออกจากระบบ", "ล็อกเอาท์", "ลบ token" | LOGOUT |
 
-**Anything after the first word is discarded, not interpreted.** E.g.
-"login foo bar" matches LOGIN on the first word; "foo bar" is dropped —
-it is never treated as an inline email/password shortcut. LOGIN's Step 2
-always asks for credentials as its own separate follow-up turn (spec 14
-§ 3.3), so there is no path by which trailing text after the action word
-could be mistaken for a credential and, e.g., echoed back or logged.
+**Credential safety is unchanged from amendment 1 and still absolute:**
+whatever surrounds the action word in the message is never interpreted as
+a credential, even if it looks like one (e.g. an email address typed in
+the same message as "login"). LOGIN's Step 2 always asks for email/
+password as its own separate follow-up turn (spec 14 § 3.3) — nothing
+about broadening Step 0's matching changes that; there is still no path
+by which text elsewhere in the message gets treated as, echoed as, or
+logged as a password.
 
-**If the first word matches none of the above, or the message has no
-clear first word at all (empty, punctuation-only, etc.) — STOP and ask,
-do not guess:**
+**Ambiguity — the case that must still ask, not guess:** a message that
+gives a clear signal for exactly one of the three actions (regardless of
+where in the sentence, or how it's phrased) is not ambiguous, and must
+not trigger a re-ask. A message is ambiguous, and must trigger the
+clarifying question below, when it (a) gives no recognizable signal for
+any of the three, or (b) gives signals for **more than one** (e.g.
+mentions both login and setup) with no clear indication which is the
+current request — never silently pick one when the message points at two:
 > ต้องการ **login** (เข้าสู่ระบบส่วนตัว), **setup** (เชื่อมต่อ server), หรือ **logout** (ออกจากระบบ) ครับ? พิมพ์คำใดคำหนึ่ง
 
 This is the single highest-risk step in this skill — misrouting `login`
-text into the SETUP branch (or vice versa) points a Discord user's
-password-derived token at the wrong shared identity. No fallback default;
-true ambiguity always asks — but "login" plus harmless trailing words is
-not ambiguous and must not trigger a redundant re-ask.
+intent into the SETUP branch (or vice versa) points a Discord user's
+password-derived token at the wrong shared identity. Genuine ambiguity
+(no signal, or competing signals) always asks; a clearly-expressed single
+intent, however phrased, must not be second-guessed back to the user.
+
+**Structural risk this amplifies, worth stating plainly rather than
+leaving implicit:** for an audience unlikely to ever type `/bobby_cli`
+explicitly, the plain-text model-invocation path (see "Why this exists"
+above — every skill is listed in `<available_skills>` unless opted out,
+and the agent decides on its own whether to load a skill from plain
+conversation) stops being a fallback and becomes the **primary** way this
+skill gets triggered at all. That path was already flagged as weaker for
+a consolidated multi-action skill than for single-purpose skills, and
+fails outright in the loader's compact-prompt fallback mode. This spec
+does not change that structural fact — it only makes Step 0 behave well
+*once the skill has been loaded*. Whether the skill reliably gets loaded
+in the first place from a natural Thai sentence with no slash is a
+separate concern or, more precisely, one that success criterion 10 below
+must be tested against realistically, not with bare keywords.
 
 ---
 
@@ -567,14 +617,23 @@ rather than risk the same drift § 2a fixed in `AGENTS.md`.
    present in the deployed `AGENTS.md` text — grep for the no-retry rule;
    the `remember`-specific typing/thinking-indicator behavior (spec 14
    § 3.10) is exercised live in an actual Discord turn.
-10. **New for this spec — disambiguation, exercised live:** sending
-    `/bobby_cli` (or plain "bobby-cli"/"bobby cli") with no recognizable
-    action, or an ambiguous message, produces the clarifying question (§ 1,
-    Step 0) rather than a guess; sending a clearly-worded `login`/`setup`/
-    `logout` message with no leading slash (plain-text, model-invocation
-    path) is exercised live at least once per action to confirm the
-    consolidated skill's weaker match signal (flagged in "Why this exists"
-    above) doesn't silently fail to trigger.
+10. **Disambiguation and realistic-phrasing intent matching, exercised
+    live — updated per amendment 2, bare keywords are not sufficient
+    coverage:** sending `/bobby_cli` with no recognizable action, or a
+    message with signals for more than one action, produces the
+    clarifying question (§ 1, Step 0) rather than a guess. Separately,
+    for **each** of the three actions, exercised live with no leading
+    slash (plain-text, model-invocation path) using a realistic full
+    Thai sentence a non-technical staff member would actually type — not
+    a bare keyword — e.g. "อยากจะ login ค่ะ", "ขอเข้าสู่ระบบหน่อยครับ",
+    "ช่วย setup ให้หน่อยได้ไหมคะ": (a) the skill is triggered at all from
+    plain conversation (closing the "Why this exists" model-invocation
+    weakness, now the *primary* trigger path for this audience per
+    amendment 2), and (b) Step 0 resolves the correct action from the
+    full sentence rather than misfiring on the leading words. "login foo
+    bar" (extraneous trailing text after a bare action word) is also
+    checked once, confirming the trailing text is discarded and never
+    treated as a credential (amendment 1's original finding).
 
 ## Open items (non-blocking — do not gate implementation tickets)
 
