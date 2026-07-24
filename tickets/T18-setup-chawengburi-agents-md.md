@@ -125,16 +125,36 @@ alike, per spec 16 § 2 amendment 4.
 
 ## Step 1 — Guided save-flow for `AUTH_CENTER`/`SESSION_MEMORY_URL`
 
-Write to **`~/.bobby-cli/.env`** (not `~/.openclaw/.env` — bobby-cli never
-reads that file; confirmed `src/index.ts` only loads the cwd `.env` and
-`~/.bobby-cli/.env`):
+Ask:
+> กรุณาบันทึกผ่าน Discord DM หรือตรงนี้ก็ได้ (ข้อความจะหายไปทันที ไม่เก็บไว้):
+>
+> **AUTH_CENTER** — URL ของ auth center (เช่น `https://auth-center.example.com`)
+> **SESSION_MEMORY_URL** — URL ของ session memory API (เช่น `https://session-memory.example.com`)
+
+**Normalize before writing — do not save the raw reply as-is (found live,
+2026-07-24: a bare hostname with no scheme, and a session-memory URL
+missing the required `/mcp` suffix, both got accepted silently the first
+time this step ran without these rules spelled out explicitly):**
+- If the value doesn't start with `http://` or `https://`, prepend
+  `https://`.
+- Strip any trailing `/`.
+- For `SESSION_MEMORY_URL` specifically: if it doesn't already end in
+  `/mcp`, append `/mcp` (bobby-cli talks to the session-memory Worker's
+  MCP endpoint at that exact path — a URL without it will make Step 5's
+  smoke test, and later every real memory operation, fail or hit the
+  wrong endpoint).
+- `AUTH_CENTER` gets no such suffix.
+
+Write the normalized values to **`~/.bobby-cli/.env`** (not
+`~/.openclaw/.env` — bobby-cli never reads that file; confirmed
+`src/index.ts` only loads the cwd `.env` and `~/.bobby-cli/.env`):
 ```
-AUTH_CENTER=<url>
-SESSION_MEMORY_URL=<url>
+AUTH_CENTER=<normalized url>
+SESSION_MEMORY_URL=<normalized url>
 ```
 `AI_TOKEN` is not written to this file — bobby-cli mints and stores its
-own token via `auth login` in Step 2. Ask for each missing value, same
-guided prompt/parse shape as the old wizard, until both are present.
+own token via `auth login` in Step 2. Re-ask for any value that's still
+missing after normalization (e.g. empty reply), until both are present.
 
 ---
 
@@ -156,13 +176,25 @@ nonzero.
 
 ## Step 2 — Admin bootstrap login
 
+Ask (found live, 2026-07-24: this step previously had no scripted prompt,
+so the model improvised one worded like a failure report before any
+credentials had even been sent — fixed by giving it exact text):
+> ต้องการ email และ password สำหรับ admin account ของ auth center ครับ (tenant `chawengburi`)
+>
+> กรุณาส่ง:
+> **Email** สำหรับเข้าระบบ auth center
+> **Password** สำหรับเข้าระบบ
+
+Wait for the reply, then run:
 ```bash
 BOBBY_CLI_EMAIL="<email>" BOBBY_CLI_PASSWORD="<password>" \
   bobby-cli auth login --json
 ```
 No `--profile` — the shared team identity is bobby-cli's own default path
 (`~/.bobby-cli/credentials.json`), the same one `/bobby_cli setup` (T17)
-reads via `cp`. Only reachable after Step 1b's gate passes.
+reads via `cp`. Only reachable after Step 1b's gate passes. On `ok:false`,
+follow the returned `hint` field and re-ask for corrected credentials —
+do not claim a failure occurred before credentials were ever sent.
 
 ---
 
