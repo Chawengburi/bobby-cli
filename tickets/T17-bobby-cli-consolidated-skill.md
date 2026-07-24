@@ -104,6 +104,15 @@ recorded here, T18/T21's own live checks may cite this ticket's
 confirmation instead of repeating it, unless the sandbox's Discord bot
 configuration changes in the meantime.
 
+**Confirmation recorded (2026-07-24):** owner confirmed, out-of-band, that
+`channels.discord.token` (sha256 `8f2dd4d2...`) and the two guild IDs under
+`channels.discord.guilds` (`1184469919996330054`,
+`1512028679738490991`) are this sandbox's own test bot/servers, distinct
+from production. Checked by the owner directly, not derived by this
+session (this session has no production values to compare against — see
+"Compare against the production token/application ID out-of-band" above).
+Gate passed; AC8 and later tickets' live checks may proceed/cite this.
+
 ## Exact file content required
 
 Create `~/.openclaw/workspace/skills/bobby-cli/SKILL.md` with exactly this
