@@ -20,9 +20,10 @@ built, why it's shaped the way it is, and what's intentionally deferred.
 | 12 | [12-spec-agent-legible-output.md](./12-spec-agent-legible-output.md) | Structured `code`/`hint` extension to the `--json` envelope so domain outcomes and recovery instructions live in the CLI, letting agent skills shrink to policy + command table |
 | 13 | [13-spec-skill-architecture.md](./13-spec-skill-architecture.md) | One single-file hand-maintained skill per CLI (revised 2026-07-18; the hub-and-spoke + `schema render` generator design was retired before implementation) — drift controlled by the same-change rule, with a growth path for when domains multiply |
 | 14 | [14-spec-openclaw-migration.md](./14-spec-openclaw-migration.md) | **ACCEPTED (2026-07-20), 3 audit rounds, round 3 GO.** Replacing the curl/Python transport under openClaw's `login`/`setup`/`setup-memory` skills with bobby-cli + `--profile <Discord id>` (`forget` stays unchanged, new `logout` skill added); folds in the 2026-07-14 trial's friction findings |
+| 15 | [15-spec-openclaw-migration-tickets-plan.md](./15-spec-openclaw-migration-tickets-plan.md) | **ACCEPTED (2026-07-23), 3 audit rounds, round 3 GO.** Pre-ticket plan turning spec 14's six work items into tickets T10–T16 (IDs, file scope, dependency order); adds the one piece of context spec 14 didn't have — this machine's `~/.openclaw/` install is a local test sandbox, not production (which runs on Linux/Docker on a separate host/repo) |
 | 16 | [16-spec-openclaw-consolidated-skill.md](./16-spec-openclaw-consolidated-skill.md) | **DRAFT (2026-07-24) — not yet audited.** Supersedes spec 14 § 3.1 only: collapses `login`/`setup`/`logout` into one invocable `bobby-cli` skill (registers `/bobby_cli`) instead of four separate skills; renames `setup-memory` → `setup-chawengburi`; archives the superseded originals into `old_skills/` |
 
-**Read order:** 01 → 02 → 03 → 04 → 05 → 06 → 07 → 08 → 09 → 10 → 11 → 12 → 13 → 14 → 16
+**Read order:** 01 → 02 → 03 → 04 → 05 → 06 → 07 → 08 → 09 → 10 → 11 → 12 → 13 → 14 → 15 → 16
 
 ---
 
