@@ -20,7 +20,7 @@ Found during a Windows/Linux compatibility review: `package.json`'s
 shell command with no native equivalent in `cmd.exe`/PowerShell. This would
 fail `npm run build` for a contributor building bobby-cli from source on
 Windows without Git Bash/WSL in `PATH` (it does **not** affect end users
-running `npm install -g bobby-cli`, since the published tarball ships a
+running `npm install -g @babyferret/bobby-cli`, since the published tarball ships a
 pre-built `dist/` and npm generates its own `.cmd`/`.ps1` wrapper on
 Windows regardless of the Unix executable bit). Fixed by replacing it with
 `tsc && node -e "require('fs').chmodSync('dist/index.js', 0o755)"` —

@@ -1,0 +1,2 @@
+- [Command-name drift](feedback_command-name-drift.md) — openClaw specs recurringly ship wrong CLI/slash command names in deployed AGENTS.md; re-derive from live files + bobby-cli src
+- [Wrong function traced](feedback_wrong-function-traced.md) — citing a real, correctly-described function isn't verification unless it's confirmed to be on the actual call path for the specific case; spec 16 §3's "one level deep" claim passed 3 audit rounds while citing the wrong loader function
