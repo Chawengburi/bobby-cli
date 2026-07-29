@@ -376,8 +376,14 @@ must not change.
    pre-change backup) confirms no other section changed.
 5. `grep -c "session-memory-call.py" ~/.openclaw/workspace/AGENTS.md`
    returns `0`.
-6. `grep -E "(^|[^_])/login|(^|[^_])/setup([^_]|$)" ~/.openclaw/workspace/AGENTS.md`
-   (bare, unqualified references) returns **zero** matches.
+6. `grep -E "(^|[^A-Za-z0-9_])/login|(^|[^A-Za-z0-9_])/setup([^_]|$)" ~/.openclaw/workspace/AGENTS.md`
+   (bare, unqualified references) returns **zero** matches. (Corrected
+   2026-07-29: the original `[^_]` pre-check only excluded a preceding
+   underscore, not a preceding letter, so it false-positived on the
+   pre-existing "Memory Behavior" line `memory/login/setup/session-memory`,
+   where `/login` and `/setup` are immediately preceded by letters, not a
+   real command reference. `[^A-Za-z0-9_]` requires a genuine separator —
+   start of string, whitespace, punctuation — before the slash.)
 7. `~/.openclaw/scripts/session-memory-call.py` no longer exists on disk
    (`test -f` fails).
 8. `bobby-cli auth login`/`bobby-cli auth show` calls in Step 2/Step 5

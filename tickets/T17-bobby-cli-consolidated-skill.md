@@ -378,10 +378,16 @@ everything else in those two actions.
    completion message (including the corrected `/bobby_cli login` line and
    the unmodified server-side-not-revoked caveat paragraph) match the
    content above exactly.
-7. `grep -E "(^|[^_])/login|(^|[^_])/setup([^_]|$)|(^|[^_])/logout" <file>`
+7. `grep -E "(^|[^A-Za-z0-9_])/login|(^|[^A-Za-z0-9_])/setup([^_]|$)|(^|[^A-Za-z0-9_])/logout" <file>`
    (bare, unqualified command references) returns **zero** matches — every
    command reference in the file is `/bobby_cli login`, `/bobby_cli
-   setup`, `/bobby_cli logout`, or `/setup_chawengburi`.
+   setup`, `/bobby_cli logout`, or `/setup_chawengburi`. (Corrected
+   2026-07-29: the original `[^_]` pre-check only excluded a preceding
+   underscore, not a preceding letter, so it false-positived on prose like
+   "login/setup/logout" where `/setup` is immediately preceded by the `n`
+   in `login`. `[^A-Za-z0-9_]` requires the character before the slash to
+   be a real separator — start of string, whitespace, punctuation — not
+   just "not underscore.")
 8. **Discord-bot-credential pre-flight gate (see section above) is
    confirmed and recorded before this item runs.** Live end-to-end: in an
    actual Discord DM turn on this sandbox, send a message that triggers
