@@ -20,7 +20,7 @@ Found during a Windows/Linux compatibility review: `package.json`'s
 shell command with no native equivalent in `cmd.exe`/PowerShell. This would
 fail `npm run build` for a contributor building bobby-cli from source on
 Windows without Git Bash/WSL in `PATH` (it does **not** affect end users
-running `npm install -g @babyferret/bobby-cli`, since the published tarball ships a
+running `npm install -g @chawengburi/bobby-cli`, since the published tarball ships a
 pre-built `dist/` and npm generates its own `.cmd`/`.ps1` wrapper on
 Windows regardless of the Unix executable bit). Fixed by replacing it with
 `tsc && node -e "require('fs').chmodSync('dist/index.js', 0o755)"` —
@@ -94,12 +94,24 @@ it? (Leaning toward "purely auth-center's problem," since a client-side
 warning can't actually detect whether a collision will happen without an
 extra API call — but this is a judgment call, not decided here.)
 
-### 3. npm package name/scope
+### 3. npm package name/scope — decided (2026-08-04)
 
-Already an open item in README's "Before publishing" checklist: `bobby-cli`
-unscoped vs. `@chawengburi/bobby-cli` scoped. Scoped publishes as private by
-default (`npm publish --access public` needed) but better signals "internal
-tool" per `DEVELOPMENT.md` Part 3 step 4. Not re-decided here — still open.
+Was: `bobby-cli` unscoped vs. a scope, still open in README's "Before
+publishing" checklist.
+
+**Decided: `@chawengburi/bobby-cli`.** Scoped, on the org account — the scope
+signals "internal tool, not a public offering" per `DEVELOPMENT.md` Part 3
+step 4, and an unscoped `bobby-cli` on the public registry is a global name
+this project has no reason to claim. Scoped packages publish private by
+default, so `--access public` is required; `package.json` sets
+`publishConfig.access: "public"` and the release workflow passes the flag
+explicitly, so neither depends on the other being remembered.
+
+This supersedes the interim `@babyferret/bobby-cli@0.3.0` publish (2026-07-21),
+which went out under a personal/trial npm account. The org, the automation
+token, and the approval gate do not exist yet — see
+[../RELEASE.md](../RELEASE.md) § One-time setup for what has to be created
+before the first release under this name.
 
 ### 4. `--tags` inconsistency in `memory show`/`memory recall` — fixed (2026-07-13)
 

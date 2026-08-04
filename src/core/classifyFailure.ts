@@ -11,8 +11,8 @@
 // | scope denied — McpError.scope is set, or AuthCenterError.status===403 | permission_denied | This identity does not have permission for this operation. Tell the user and suggest they contact the owner — do not retry or switch identities. |
 // | network-level failure (.networkCause set) on either error class | network | The server is unreachable — check connectivity or report it; do not retry writes. |
 // | server rejected the request with any other non-2xx status not covered above | server | Report this error verbatim. Do not retry writes — duplicate detection makes blind retries create duplicates. |
-// | fallback: neither status nor networkCause set (a real, reachable state — e.g. empty MCP response) | server | same server hint |
-// | bad local input (commander's own validation) | usage | commander's own message, unchanged |
+// | fallback: neither status nor networkCause set (a real, reachable state — empty MCP response, JSON-RPC error object, or a tool-level isError — see mcpClient.ts) | server | same server hint |
+// | bad local input — commander's own validation, or a CliUsageError for checks commander can't express (invalid --profile name, non-numeric -n) | usage | commander's message unchanged; CliUsageError's own one-line message |
 
 import type { McpError } from "./mcpClient.js";
 import type { AuthCenterError } from "./authClient.js";

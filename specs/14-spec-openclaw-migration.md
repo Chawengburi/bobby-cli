@@ -385,7 +385,7 @@ step, keeping the old wizard's shape and folding in the F5/F6/F10 fixes:
   ```bash
   bobby-cli --version
   ```
-  Missing/not on `PATH` → tell the admin to `npm install -g @babyferret/bobby-cli`
+  Missing/not on `PATH` → tell the admin to `npm install -g @chawengburi/bobby-cli`
   first and stop. Every later step assumes this succeeded.
 
 - **Step 1 (kept, retargeted — fixes F5) — guided save-flow for

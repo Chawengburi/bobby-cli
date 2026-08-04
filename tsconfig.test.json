@@ -1,0 +1,19 @@
+// Tests compile to a throwaway directory, never into `dist`. `package.json`'s
+// `files` only ships `dist`, so this keeps test code out of the published
+// tarball by construction rather than by an ignore rule someone can forget.
+//
+// `rootDir: "."` puts output at `.test-build/src/**` — one level deeper than
+// `dist/**`. `src/version.ts` reads the version via `require("../package.json")`,
+// which is relative to the compiled file, so the `pretest` script copies
+// package.json into `.test-build/` to keep that lookup working. If the CLI's
+// build layout ever changes, that copy is what has to change with it.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": ".test-build",
+    "rootDir": ".",
+    "declaration": false,
+    "noEmitOnError": true
+  },
+  "include": ["src/**/*", "test/**/*"]
+}

@@ -3,6 +3,7 @@ import {
   requireCredentials,
   resolveSessionMemoryUrl,
   CliAuthError,
+  CliUsageError,
   mcpToolCall,
   McpError,
   classifyMcpFailure,
@@ -45,11 +46,38 @@ async function callTool(
       const failure = classifyMcpFailure(err);
       return { ok: false, error: err.message, code: failure.code, hint: failure.hint, scope: failure.scope };
     }
-    // Not a CliAuthError/McpError — an unexpected internal failure (e.g. an
-    // invalid --profile name), not bad argv, so it's "server" rather than
-    // "usage".
+    // Bad local input commander can't catch (invalid --profile name). Spec 12
+    // § 2 calls this `usage`; `auth show`/`auth forget` already did, and this
+    // used to be the one place that called it `server` — telling agents to
+    // report an outage over a typo they could fix themselves.
+    if (err instanceof CliUsageError) {
+      return usageFailure(err.message);
+    }
     return { ok: false, error: (err as Error).message, code: "server", hint: SERVER_HINT };
   }
+}
+
+function usageFailure(message: string): CallToolResult {
+  return { ok: false, error: message, code: "usage", hint: message };
+}
+
+// Validated locally rather than shipped to the server: `parseInt("abc")` is
+// NaN, JSON.stringify turns NaN into null, and the Worker then rejects it with
+// a zod type error — a round-trip that ends in a `server` code for what is
+// plainly bad local input.
+// Digits-only before Number(), not Number() alone: Number("1e3") is 1000 and
+// Number("0x10") is 16, both of which pass Number.isInteger and would ship a
+// value the caller never typed. `1e20` would even survive the integer check and
+// reach the Worker — the exact round-trip this validation exists to prevent.
+function parseLimit(raw: string, flag: string): number | CallToolResult {
+  if (!/^\d+$/.test(raw.trim())) {
+    return usageFailure(`${flag} must be a positive whole number — got "${raw}".`);
+  }
+  const n = Number(raw.trim());
+  if (!Number.isSafeInteger(n) || n <= 0) {
+    return usageFailure(`${flag} must be a positive whole number — got "${raw}".`);
+  }
+  return n;
 }
 
 function emit(result: CallToolResult, json?: boolean): void {
@@ -99,10 +127,12 @@ export function registerMemoryCommand(program: Command): void {
     .option(...PROFILE_OPTION)
     .option("--json", "machine-readable output")
     .action(async (opts: BaseOpts & { limit: string; tags?: string }) => {
+      const limit = parseLimit(opts.limit, "-n/--limit");
+      if (typeof limit !== "number") return emit(limit, opts.json);
       const result = await callTool(
         "list_recent",
         {
-          n: parseInt(opts.limit, 10),
+          n: limit,
           ...tagFilterArgs(parseTags(opts.tags)),
         },
         opts.profile
@@ -118,11 +148,13 @@ export function registerMemoryCommand(program: Command): void {
     .option(...PROFILE_OPTION)
     .option("--json", "machine-readable output")
     .action(async (query: string, opts: BaseOpts & { limit: string; tags?: string }) => {
+      const limit = parseLimit(opts.limit, "-n/--limit");
+      if (typeof limit !== "number") return emit(limit, opts.json);
       const result = await callTool(
         "recall",
         {
           query,
-          topK: parseInt(opts.limit, 10),
+          topK: limit,
           ...tagFilterArgs(parseTags(opts.tags)),
         },
         opts.profile

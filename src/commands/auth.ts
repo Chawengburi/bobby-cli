@@ -15,6 +15,7 @@ import {
   listApiTokens,
   rotateApiToken,
   AuthCenterError,
+  CliUsageError,
   classifyAuthCenterFailure,
   SERVER_HINT,
 } from "../core/index.js";
@@ -24,6 +25,38 @@ const PROFILE_OPTION = [
   "--profile <name>",
   "use a named credential profile instead of the default (see BOBBY_CLI_PROFILES_DIR)",
 ] as const;
+
+// One place decides how a thrown error becomes an envelope, so every auth
+// subcommand answers the same input with the same `code`. Two bugs came from
+// having this logic duplicated per call site: the same invalid --profile name
+// was `usage` from `auth show` but `server` from `auth login` and `memory
+// show`; and a catch that rethrew anything unrecognised produced NO envelope
+// at all under --json, breaking spec 12's rule that every failure carries a
+// hint. Anything that isn't a known class is still reported — as `server` —
+// never rethrown.
+function failureEnvelope(
+  err: unknown,
+  preClassified?: { code: string; hint: string }
+): { message: string; code: string; hint: string } {
+  const message = err instanceof Error ? err.message : String(err);
+  if (preClassified) return { message, ...preClassified };
+  if (err instanceof CliUsageError) return { message, code: "usage", hint: message };
+  return { message, code: "server", hint: SERVER_HINT };
+}
+
+// `preClassified` is for the one case the class alone can't decide: an
+// auth-center 401 means `login_failed` during `auth login` but `server`
+// anywhere else, so the caller supplies the context (spec 12 § 2).
+function emitFailure(err: unknown, json?: boolean, preClassified?: { code: string; hint: string }): void {
+  const { message, code, hint } = failureEnvelope(err, preClassified);
+  if (json) {
+    printJson({ ok: false, error: message, code, hint });
+    process.exitCode = 1;
+  } else {
+    printError(message);
+    printInfo(hint);
+  }
+}
 
 interface LoginOptions {
   email?: string;
@@ -118,19 +151,16 @@ async function runLogin(opts: LoginOptions): Promise<void> {
       printSuccess(`Logged in as ${user.email}. Credentials saved to ${resolveCredentialsPath(opts.profile)}`);
     }
   } catch (err) {
-    const message = err instanceof AuthCenterError ? err.message : (err as Error).message;
     // context: "login" — a 401 here (bad credentials during `auth login`
     // itself) is login_failed, not not_logged_in (see classifyFailure.ts).
-    const failure = err instanceof AuthCenterError
-      ? classifyAuthCenterFailure(err, "login")
-      : { code: "server", hint: SERVER_HINT };
-    if (opts.json) {
-      printJson({ ok: false, error: message, code: failure.code, hint: failure.hint });
-      process.exitCode = 1;
-    } else {
-      printError(message);
-      printInfo(failure.hint);
-    }
+    // Everything else (including an invalid --profile name, which is thrown by
+    // loadCredentials before any network call) goes through the shared
+    // classifier so it can't drift from the other subcommands again.
+    emitFailure(
+      err,
+      opts.json,
+      err instanceof AuthCenterError ? classifyAuthCenterFailure(err, "login") : undefined
+    );
   }
 }
 
@@ -139,17 +169,7 @@ function runShow(opts: { json?: boolean; profile?: string }): void {
   try {
     creds = loadCredentials(opts.profile);
   } catch (err) {
-    // loadCredentials only throws from resolveCredentialsPath's invalid
-    // --profile name check (bad local input) — never a CliAuthError or
-    // AuthCenterError, so "usage" is the right code, not a fallback.
-    const message = (err as Error).message;
-    if (opts.json) {
-      printJson({ ok: false, error: message, code: "usage", hint: message });
-      process.exitCode = 1;
-    } else {
-      printError(message);
-      printInfo(message);
-    }
+    emitFailure(err, opts.json);
     return;
   }
 
@@ -200,16 +220,10 @@ function runForget(opts: { json?: boolean; profile?: string }): void {
   try {
     existed = deleteCredentials(opts.profile);
   } catch (err) {
-    // Same reasoning as runShow: deleteCredentials only throws from
-    // resolveCredentialsPath's invalid --profile name check.
-    const message = (err as Error).message;
-    if (opts.json) {
-      printJson({ ok: false, error: message, code: "usage", hint: message });
-      process.exitCode = 1;
-    } else {
-      printError(message);
-      printInfo(message);
-    }
+    // Not just an invalid --profile name: deleteCredentials does real I/O, so
+    // EACCES/EPERM on a locked ~/.bobby-cli reaches here too and must still
+    // produce a proper envelope rather than escaping the command.
+    emitFailure(err, opts.json);
     return;
   }
 

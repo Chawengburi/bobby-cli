@@ -9,7 +9,7 @@ Step-by-step commands for working on bobby-cli locally, and for publishing it to
 ## Part 0 — Before you touch anything
 
 - ⚠️ **`.env` must never be committed.** It's already in `.gitignore`, but double-check with `git status` before every commit — if `.env` ever shows up as a file `git` wants to add, stop and figure out why before continuing.
-- ⚠️ **Never put real passwords, tokens, or secrets directly into code.** The only URLs baked into `src/config.ts` are Worker *URLs* (not secret — they're plain HTTPS addresses, same as any website), never the `sm_live_...` API token or your email/password. If you're ever asked to hardcode a token "just for testing," don't — use `.env` instead.
+- ⚠️ **Never put real passwords, tokens, or secrets directly into code.** The only URLs baked into `src/core/config.ts` are Worker *URLs* (not secret — they're plain HTTPS addresses, same as any website), never the `sm_live_...` API token or your email/password. If you're ever asked to hardcode a token "just for testing," don't — use `.env` instead.
 - ⚠️ **Nothing in Part 1 or Part 2 below is public or permanent.** `npm install`, `npm run build`, `npm link`, `npm pack` all only touch your own machine. You cannot break anything for anyone else by running them. Part 3 (publishing) is the only section where mistakes become hard to undo — take it slowly.
 
 ---
@@ -65,7 +65,7 @@ This runs the built CLI directly. Good for a quick check, but it's not how a rea
 npm link
 ```
 
-This creates a symlink so the `bobby-cli` command works from **any directory**, exactly like it would after a real `npm install -g bobby-cli` — except it points at your local folder, so every rebuild (`npm run build`) is reflected immediately with no re-linking needed.
+This creates a symlink so the `bobby-cli` command works from **any directory**, exactly like it would after a real `npm install -g @chawengburi/bobby-cli` — except it points at your local folder, so every rebuild (`npm run build`) is reflected immediately with no re-linking needed.
 
 Verify it worked:
 
@@ -111,12 +111,12 @@ cp .env.example ~/.bobby-cli/.env
 npm pack
 ```
 
-This creates a file like `bobby-cli-0.1.0.tgz` in this directory — this is the literal file that would be uploaded to npm. It also prints the full list of files inside it; skim it and confirm `.env` is **not** in that list (only `.env.example` should be).
+This creates a file like `chawengburi-bobby-cli-0.3.0.tgz` in this directory — this is the literal file that would be uploaded to npm. It also prints the full list of files inside it; skim it and confirm `.env` is **not** in that list (only `.env.example` should be).
 
 ### 2. Install from that file, like a real user would
 
 ```bash
-npm install -g ./bobby-cli-0.1.0.tgz
+npm install -g ./chawengburi-bobby-cli-0.3.0.tgz
 ```
 
 ### 3. Test it
@@ -129,8 +129,8 @@ bobby-cli auth show
 ### 4. Clean up
 
 ```bash
-npm uninstall -g bobby-cli
-rm bobby-cli-*.tgz
+npm uninstall -g @chawengburi/bobby-cli
+rm chawengburi-bobby-cli-*.tgz
 ```
 
 ⚠️ The `.tgz` file is a build artifact, not source code — it's already in `.gitignore` (`*.tgz`), but delete it anyway so it doesn't clutter the folder.
@@ -139,14 +139,29 @@ rm bobby-cli-*.tgz
 
 ## Part 3 — Publishing to the public npm registry
 
-⚠️ **Read Part 0 again before starting this section.** Everything from here on is about making bobby-cli downloadable by anyone in the world via `npm install -g bobby-cli`. Take your time.
+> **This part is now background reading, not the procedure.** Two things it
+> walks you through have since been decided and automated:
+>
+> - **The name is settled:** `@chawengburi/bobby-cli` (2026-08-04, see
+>   `specs/07-spec-roadmap-open-questions.md` § 3). Step 4 below is kept
+>   because the reasoning is still worth understanding, not because the
+>   choice is still open.
+> - **Publishing is no longer manual.** Releases go out through GitHub
+>   Actions from a `release/<version>` git tag, with a version guard and an
+>   approval gate. **Follow [RELEASE.md](./RELEASE.md) instead** — running
+>   `npm publish` by hand skips both.
+>
+> Read this part to understand *what publishing does and why it's hard to
+> undo*. Use RELEASE.md to actually ship.
+
+⚠️ **Read Part 0 again before starting this section.** Everything from here on is about making bobby-cli downloadable by anyone in the world via `npm install -g @chawengburi/bobby-cli`. Take your time.
 
 ### 1. Decide if you're really ready
 
 Ask yourself:
 - Have you tested the real tarball install from Part 2?
-- Are you comfortable that `src/config.ts`'s baked-in URLs (`auth-center.phantaporntr.workers.dev`, `second-brain.phantaporntr.workers.dev`) are the ones you want live in the published package?
-- Is `bobby-cli` really the name you want, publicly, forever associated with your npm account? (See step 4 below — names can't be easily reused once taken.)
+- Are you comfortable that `src/core/config.ts`'s baked-in URLs (`auth-center.phantaporntr.workers.dev`, `second-brain.phantaporntr.workers.dev`) are the ones you want live in the published package?
+- ~~Is `bobby-cli` really the name you want…~~ **Settled: `@chawengburi/bobby-cli`** (2026-08-04). Kept here only so the reasoning in step 4 still reads in order.
 
 If any of these feel uncertain, stop here and come back later. Nothing bad happens by waiting.
 
@@ -173,10 +188,10 @@ This should print your npm username. (Checked on this machine already — curren
 ### 4. Check the package name is actually available
 
 ```bash
-npm view bobby-cli
+npm view @chawengburi/bobby-cli
 ```
 
-If you see `404 Not Found`, the name is free (confirmed available as of this guide being written). If you instead see package details, someone else already published a package called `bobby-cli` — you'd need a different name.
+If you see `404 Not Found`, the name is free. If you instead see package details, someone else already published under that name — you'd need a different one. (For a scoped name this can only happen if your own org already published it.)
 
 **Consider a scoped name instead**, e.g. `@yourNpmUsername/bobby-cli` or `@chawengburi/bobby-cli`. This has two advantages given this is really an internal tool:
 - It can never collide with someone else's unscoped package of the same name.
@@ -232,8 +247,8 @@ This is the one command in this whole guide that is genuinely hard to undo. Once
 ### 9. Verify it's live
 
 ```bash
-npm view bobby-cli
-npm install -g bobby-cli   # fresh install from the real registry, not a local link/tarball
+npm view @chawengburi/bobby-cli
+npm install -g @chawengburi/bobby-cli   # fresh install from the real registry, not a local link/tarball
 bobby-cli --version
 ```
 
@@ -241,7 +256,7 @@ bobby-cli --version
 
 ### 10. Publishing updates later
 
-Repeat steps 6–8: bump the version with `npm version patch` (or `minor`/`major`), dry-run, then `npm publish` again.
+Do **not** repeat steps 6–8 by hand — that path is superseded. Bump the version, commit, then push a `release/<version>` tag and approve the run: [RELEASE.md § Cutting a release](./RELEASE.md#cutting-a-release).
 
 ### 11. If something goes wrong after publishing
 
@@ -249,7 +264,7 @@ Repeat steps 6–8: bump the version with `npm version patch` (or `minor`/`major
 - **You published something sensitive or badly broken**: npm allows `npm unpublish <package>@<version>` but **only within 72 hours of publishing**, and only if no other package depends on it yet. After 72 hours, npm's policy is that packages should be deprecated, not removed, to avoid breaking other people's installs (this is the same policy that exists because of the historical "left-pad" incident). To mark a version as "don't use this" without removing it:
 
   ```bash
-  npm deprecate bobby-cli@0.1.0 "This version had a bug, please upgrade"
+  npm deprecate @chawengburi/bobby-cli@0.3.0 "This version had a bug, please upgrade"
   ```
 
   This is the safer, recommended way to walk back a bad release — it warns anyone who installs that version, without yanking it out from under people who already depend on it.
@@ -268,7 +283,7 @@ Repeat steps 6–8: bump the version with `npm version patch` (or `minor`/`major
 | Build the real package file to inspect/test | `npm pack` |
 | See what would be published, safely | `npm pack --dry-run` or `npm publish --dry-run` |
 | Log in to npm | `npm login` then `npm whoami` to confirm |
-| Check if the name is free | `npm view bobby-cli` (404 = free) |
+| Check if the name is free | `npm view @chawengburi/bobby-cli` (404 = free) |
 | Bump the version before a new release | `npm version patch` / `minor` / `major` |
-| **Actually publish (public, hard to undo)** | `npm publish` |
-| Soft-remove a bad published version | `npm deprecate bobby-cli@<version> "<message>"` |
+| **Actually publish (public, hard to undo)** | Don't — push a `release/<version>` tag and approve the run. See [RELEASE.md](./RELEASE.md). |
+| Soft-remove a bad published version | `npm deprecate @chawengburi/bobby-cli@<version> "<message>"` |

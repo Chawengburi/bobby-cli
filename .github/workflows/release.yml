@@ -1,0 +1,72 @@
+name: release
+
+# Publishes ONLY from a `release/<version>` tag — never from a branch push.
+# `*` in a tag filter does not cross `/`, so `release/*` matches
+# `release/1.0.1` but not `release/1.0.1/anything`.
+#
+# NOTE: do not add a `branches:` key to this `on.push` block. GitHub treats
+# branch and tag filters in the same trigger as OR, which would make every
+# branch push try to publish.
+on:
+  push:
+    tags:
+      - 'release/*'
+
+permissions:
+  contents: read
+  # Only needed if `--provenance` is re-enabled below; harmless otherwise.
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    # Gate: configure `npm-production` under Settings -> Environments with a
+    # required reviewer. Publishing stays a human decision, per the project
+    # rule that npm publish is the team lead's call.
+    environment: npm-production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      # The v0.3.0 release shipped to npm without a matching git tag, so the
+      # published artifact could not be traced back to a commit. This step
+      # makes that class of drift a hard failure instead of a discovery.
+      - name: Verify tag matches package.json version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#release/}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          echo "tag=$TAG_VERSION package.json=$PKG_VERSION"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::tag $TAG_VERSION does not match package.json $PKG_VERSION"
+            exit 1
+          fi
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - run: npm test
+
+      # ci.yml filters on `branches`, which never matches a tag ref — so
+      # pushing release/<v> runs this workflow ALONE. The packaging guard has
+      # to be repeated here or it would be skipped at the exact moment it
+      # matters most: the push that actually uploads to the registry.
+      - name: Pack check
+        run: node scripts/check-pack.mjs
+
+      # No `--provenance`: npm can only generate provenance attestations for
+      # packages built from a PUBLIC repository, and Chawengburi/bobby-cli is
+      # private. Adding the flag here would fail the publish step outright.
+      # If the repo is ever made public, append `--provenance` — the
+      # `id-token: write` permission above is already in place for it.
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

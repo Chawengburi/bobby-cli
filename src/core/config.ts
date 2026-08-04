@@ -45,7 +45,7 @@ export interface Credentials {
 export function resolveCredentialsPath(profile?: string): string {
   if (!profile) return CREDENTIALS_PATH;
   if (!PROFILE_NAME_RE.test(profile)) {
-    throw new Error(`Invalid profile name: ${profile}. Use only letters, numbers, "-", "_".`);
+    throw new CliUsageError(`Invalid profile name: ${profile}. Use only letters, numbers, "-", "_".`);
   }
   const profilesDir = process.env.BOBBY_CLI_PROFILES_DIR ?? DEFAULT_PROFILES_DIR;
   return join(profilesDir, `${profile}.json`);
@@ -99,3 +99,12 @@ export function resolveSessionMemoryUrl(stored?: string | null): string {
 // Deliberately no status/networkCause fields (spec 12 §2): "no local
 // credentials" needs no transport detail — the class itself is the signal.
 export class CliAuthError extends Error {}
+
+// Bad local input that commander cannot catch itself — an invalid --profile
+// name, a non-numeric -n. Spec 12 § 2 classifies these as `usage`, and having
+// a class carry that means every command classifies them the same way. Before
+// this existed, `resolveCredentialsPath` threw a bare Error and each caller
+// guessed: `auth show` called it `usage` while `memory show` called it
+// `server` — the same typo produced two different codes and a hint that told
+// agents to report a server outage.
+export class CliUsageError extends Error {}

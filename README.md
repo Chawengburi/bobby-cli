@@ -5,7 +5,7 @@ A CLI for our own auth-center + session-memory — one login and one memory clie
 **This is an internal tool published to npm for easy installation, not a generic bring-your-own-backend CLI.** Every install talks to the same fixed auth-center/session-memory deployment unless you set a per-device `.env` or exported env vars — `auth login` only ever asks for your email and password, never for a server URL. See "Configuration" below if that surprises you.
 
 ```
-npm install -g bobby-cli
+npm install -g @chawengburi/bobby-cli
 ```
 
 ---
@@ -141,9 +141,13 @@ Memory operations (`show`, `recall`, `remember`, `append`, `forget`) all call se
 
 ## Before publishing to npm
 
-- [x] Swap `DEFAULT_AUTH_CENTER_URL` and `DEFAULT_SESSION_MEMORY_URL` in `src/config.ts` to the real production URLs — done, they now point at `auth-center.phantaporntr.workers.dev` / `second-brain.phantaporntr.workers.dev`.
-- [x] Confirm `npm pack --dry-run` doesn't include `.env` — verified, only `.env.example` ships.
-- [ ] Decide whether `bobby-cli` is the final package name on the public npm registry, or if it should be scoped (e.g. `@chawengburi/bobby-cli`) to make the "internal tool, not a public offering" intent clearer to anyone who stumbles on it.
+**How to actually cut a release: [RELEASE.md](./RELEASE.md).** Releases go out
+through CI from a `release/<version>` git tag, never from a laptop.
+
+- [x] Swap `DEFAULT_AUTH_CENTER_URL` and `DEFAULT_SESSION_MEMORY_URL` in `src/core/config.ts` to the real production URLs — done, they now point at `auth-center.phantaporntr.workers.dev` / `second-brain.phantaporntr.workers.dev`.
+- [x] Confirm `npm pack --dry-run` doesn't include `.env` — verified, only `.env.example` ships. CI re-checks this on every push.
+- [x] Decide the package name — scoped as `@chawengburi/bobby-cli` (decided 2026-08-04), which signals "internal tool, not a public offering" to anyone who stumbles on it. This supersedes the earlier trial publish under the personal `@babyferret` scope.
+- [ ] Create the `chawengburi` npm org, the `NPM_TOKEN` automation token, and the `npm-production` environment gate — none exist yet. See [RELEASE.md § One-time setup](./RELEASE.md#one-time-setup-not-done-yet).
 
 ---
 

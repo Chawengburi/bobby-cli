@@ -14,7 +14,11 @@ interface JsonRpcRequest {
 interface JsonRpcResponse {
   jsonrpc: "2.0";
   id: number;
-  result?: { content: Array<{ type: string; text: string }> };
+  // `isError` is how MCP reports a TOOL-level failure: the JSON-RPC call
+  // itself succeeded (HTTP 200, `result` populated, no `error` member), but
+  // the tool refused or blew up, and the reason is in `content[].text`.
+  // Omitting it here is what let every tool error be read as success.
+  result?: { content: Array<{ type: string; text: string }>; isError?: boolean };
   error?: { code: number; message: string };
 }
 
@@ -33,6 +37,16 @@ export class McpError extends Error {
   }
 }
 
+// Tests usability, not just key presence: `{"result": null}` has a `result`
+// key and is still nothing to read, and returning "" for it is the same
+// "failure read as success" the isError gap produced. Both transport shapes
+// route through here so they can't diverge.
+function isUsable(msg: unknown): msg is JsonRpcResponse {
+  if (typeof msg !== "object" || msg === null) return false;
+  const { result, error } = msg as JsonRpcResponse;
+  return (result ?? null) !== null || (error ?? null) !== null;
+}
+
 async function readJsonRpc(res: Response): Promise<JsonRpcResponse | null> {
   const contentType = res.headers.get("content-type") ?? "";
   if (contentType.includes("text/event-stream")) {
@@ -40,15 +54,22 @@ async function readJsonRpc(res: Response): Promise<JsonRpcResponse | null> {
     for (const line of body.split("\n")) {
       if (!line.startsWith("data: ")) continue;
       try {
-        const msg = JSON.parse(line.slice(6));
-        if (msg && ("result" in msg || "error" in msg)) return msg as JsonRpcResponse;
+        const msg: unknown = JSON.parse(line.slice(6));
+        if (isUsable(msg)) return msg;
       } catch {
         // ignore malformed SSE chunks
       }
     }
     return null;
   }
-  return (await res.json()) as JsonRpcResponse;
+  // Without this the JSON path returned "" as a successful empty result while
+  // the SSE path correctly errored on the same body.
+  try {
+    const msg: unknown = await res.json();
+    return isUsable(msg) ? msg : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function mcpToolCall(
@@ -123,6 +144,20 @@ export async function mcpToolCall(
   const scopeMatch = /^Requires scope: (.+)$/.exec(text.trim());
   if (scopeMatch) {
     throw new McpError(text, { scope: scopeMatch[1] });
+  }
+  // The scope check above runs first as defence in depth, NOT because denials
+  // are flagged today: every scope guard in the Worker returns a plain
+  // successful result with no `isError` (session-memory/src/index.ts:641, 719,
+  // 798, 907, 984), exactly as spec 12 § 2 records. The ordering only matters
+  // if the Worker ever starts flagging them — and then `permission_denied`
+  // (hint: stop, you lack permission) must still win over the generic `server`
+  // code (hint: report an outage, don't retry).
+  //
+  // No status/networkCause: the transport succeeded, so classifyMcpFailure
+  // resolves this to `server` — "the server answered and refused", which is
+  // exactly what happened. Spec 12 § 2.
+  if (msg.result?.isError) {
+    throw new McpError(text || `MCP tool ${toolName} reported an error with no message.`);
   }
   return text;
 }

@@ -8,6 +8,7 @@ export {
   resolveSessionMemoryUrl,
   resolveCredentialsPath,
   CliAuthError,
+  CliUsageError,
 } from "./config.js";
 export type { Credentials } from "./config.js";
 

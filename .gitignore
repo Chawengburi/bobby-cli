@@ -3,3 +3,5 @@ dist/
 *.log
 *.tgz
 .env
+.test-build/
+.DS_Store

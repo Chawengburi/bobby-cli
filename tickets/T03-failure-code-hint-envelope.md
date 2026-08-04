@@ -32,8 +32,40 @@ fields T01 added to the error classes.
 | scope denied — `McpError.scope` is set (see T01), or `AuthCenterError.status === 403` | `permission_denied` | `This identity does not have permission for this operation. Tell the user and suggest they contact the owner — do not retry or switch identities.` |
 | network-level failure (`.networkCause` set, i.e. `ECONNREFUSED`, DNS, …) on either error class | `network` | `The server is unreachable — check connectivity or report it; do not retry writes.` |
 | server rejected the request with any other non-2xx status not covered above | `server` | `Report this error verbatim. Do not retry writes — duplicate detection makes blind retries create duplicates.` |
-| **fallback:** `McpError`/`AuthCenterError` with **neither** `status` nor `networkCause` set — a real, reachable state: `Empty MCP response` and a JSON-RPC `error` object both arrive over HTTP 2xx (`mcpClient.ts:101–102`) | `server` | same `server` hint as above |
-| bad local input (commander's own validation — unknown flag, missing required arg) | `usage` | commander's own message, unchanged — do not invent new wording |
+| **fallback:** `McpError`/`AuthCenterError` with **neither** `status` nor `networkCause` set — a real, reachable state: `Empty MCP response`, a JSON-RPC `error` object, and a tool-level `isError` all arrive over HTTP 2xx | `server` | same `server` hint as above |
+| bad local input — commander's own validation (unknown flag, missing required arg) **or** a check commander cannot express (`CliUsageError`: invalid `--profile` name, non-numeric `-n`) | `usage` | commander's message unchanged; for `CliUsageError`, the CLI's own one-line message — do not invent extra wording |
+
+**Amendment (2026-08-04) — two corrections found in review:**
+
+1. **`isError` was an unhandled third outcome.** MCP reports tool-level
+   failures as HTTP 200 + JSON-RPC `result` with `isError: true`, not as a
+   status code and not as an `error` member. `mcpClient.ts` read neither, so
+   every such failure was returned as ordinary result text and the envelope
+   said `ok: true` with `code: "unclassified"` and exit 0 — an agent reading
+   `ok` saw success. It now throws `McpError` (no status, no networkCause →
+   the fallback row above → `server`). The `Requires scope:` check runs
+   **first**, but as defence in depth only: no Worker scope guard sets
+   `isError` today (`session-memory/src/index.ts:641/719/798/907/984`), so
+   denials never reach the new branch. The ordering preserves
+   `permission_denied` if that ever changes.
+2. **`usage` was not applied consistently.** `resolveCredentialsPath` threw a
+   bare `Error` for an invalid `--profile` name, leaving each call site to
+   guess: `auth show`/`auth forget` classified it `usage`, `memory *` and
+   `auth login` classified it `server` — so the same typo produced two
+   different codes, and the `server` hint told agents to report an outage
+   and not retry. The throw is now a `CliUsageError`, and **every** command
+   classifies through one shared path rather than per-call-site `instanceof`
+   chains: `failureEnvelope()`/`emitFailure()` in `src/commands/auth.ts` and
+   the `callTool` catch in `src/commands/memory.ts`. Unrecognised errors
+   fall through to `server` — they are never rethrown, because an error that
+   escapes a command produces no envelope at all under `--json` (found in
+   review: EACCES on a locked `~/.bobby-cli` printed a bare stderr line and
+   left stdout empty, violating § "every failure carries a hint").
+   Non-numeric `-n` is validated locally for the same reason; previously
+   `parseInt("abc")` → `NaN` → serialised as `null` → rejected by the
+   Worker's zod schema, turning bad local input into a `server` failure.
+   The check is `/^\d+$/` before `Number()`, so `1e3` and `0x10` are
+   rejected rather than silently accepted as 1000 and 16.
 
 **Critical distinction:** a 401 from session-memory (`McpError.status === 401`)
 is `not_logged_in`, but a 401 from auth-center *specifically during

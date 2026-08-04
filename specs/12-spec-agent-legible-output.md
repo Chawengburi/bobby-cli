@@ -135,14 +135,27 @@ exactly. Source of truth: `session-memory/src/index.ts` (line refs as of
 | `Nothing found matching that query.` (recall, empty) | `results` | `count: 0` |
 | `No entries found.` (show/list, empty) / numbered entry list | `results` | `count` (0 for the former) |
 
-`permission_denied` is deliberately the **only** row that overrides `ok`:
-the server said 200 but authorization blocked the effect, and reporting
-that as success is the worst possible misread (verified failure mode,
-2026-07-17 review finding B1). Every other row keeps `ok`'s
+`permission_denied` is deliberately the **only** row **in this table** that
+overrides `ok`: the server said 200 but authorization blocked the effect,
+and reporting that as success is the worst possible misread (verified
+failure mode, 2026-07-17 review finding B1). Every other row keeps `ok`'s
 "transport succeeded" meaning. The Worker's append-validation strings
 (`Addition cannot be empty.`, `Append failed: <message>`) intentionally
 have no row — they fall to `code: "unclassified"` with the server text
 intact, which is the correct honest answer for rare/unstructured failures.
+
+> **Amendment (2026-08-04) — this table is only reached for tool responses
+> that are not flagged as errors.** MCP has a second failure channel that
+> this spec originally missed: a tool response can carry
+> `result.isError: true` (HTTP 200, JSON-RPC `result`, no `error` member)
+> with the reason in `content[].text`. The CLI now checks that flag before
+> consulting this table — see § 2's `isError` row. Consequence for the two
+> append-validation strings above: they are **unaffected**, because the
+> Worker returns them as ordinary results without setting `isError`
+> (verified in `session-memory/src/index.ts:740` and `:760`), so they still
+> land on `unclassified`. That is a Worker-side gap worth fixing there —
+> `Append failed:` is a genuine failure being reported as `ok: true` — but
+> it is out of scope for the CLI, which cannot distinguish it from content.
 
 Two obligations come with this table:
 
@@ -177,8 +190,9 @@ action:
 | auth-center rejected `auth login` credentials (**401 on the auth-center transport**) | `login_failed` | `Login was rejected — check the email and password and try again.` |
 | scope denied — session-memory answers **200** with `Requires scope: <scope>` (§ 1.1), or an auth-center endpoint answers **403** | `permission_denied` | `This identity does not have permission for this operation. Tell the user and suggest they contact the owner — do not retry or switch identities.` |
 | server unreachable (`ECONNREFUSED`, DNS, …) | `network` | `The server is unreachable — check connectivity or report it; do not retry writes.` |
+| session-memory answers **200** with `result.isError: true` (MCP tool-level failure — input validation, tool exception) and the text is not a `Requires scope:` denial | `server` | `Report this error verbatim. Do not retry writes — duplicate detection makes blind retries create duplicates.` |
 | server rejected the request (other 4xx/5xx) | `server` | `Report this error verbatim. Do not retry writes — duplicate detection makes blind retries create duplicates.` |
-| bad local input (unknown flag, missing arg) | `usage` | commander's own message, unchanged |
+| bad local input (unknown flag, missing arg, invalid `--profile` name, non-numeric `-n`) | `usage` | commander's own message, or the CLI's own one-line message for checks commander can't do |
 
 **Classification is per (transport, status), never status alone** (revised
 2026-07-17 after review finding that a status-only rule was verified
@@ -198,6 +212,23 @@ against REST endpoints the CLI doesn't use):
   same token succeeded (denial is scope-driven, not a broken token).
   (The `403`s at `:985`/`:1048` belong to the REST `/capture`/`/list`
   endpoints, which bobby-cli never calls.)
+  **Amendment (2026-08-04):** the same transport has a *third* outcome this
+  bullet originally missed — HTTP 200 with `result.isError: true`, which the
+  MCP layer uses for tool-level failures such as argument validation. It is
+  neither a status code nor a § 1.1 text pattern, so the original two-way
+  split (status → failure, text → outcome) had no place to put it and it fell
+  through as a successful result. Captured live against the deployed Worker:
+  `tools/call list_recent {"n": null}` → HTTP 200, SSE-framed
+  (`event: message` / `data: …`, the transport's default), whose payload is
+  `{"result":{"content":[{"text":"MCP error -32602: Input validation error…"}],"isError":true}}`.
+  The CLI now maps `isError` → `server`. The `Requires scope:` check is
+  evaluated first, but **only as defence in depth** — scope denials are
+  *not* flagged with `isError` today (the bullet above this one records the
+  2026-07-17 live verification that they come back as ordinary successful
+  results, and `session-memory/src/index.ts:641/719/798/907/984` confirm no
+  guard sets the flag). The ordering exists so that `permission_denied`
+  would still win if the Worker ever starts flagging them. Regression cover:
+  `test/mcpClient.test.ts`.
 - **auth-center transport (`AuthCenterError`, `/auth/token` +
   `/auth/tokens`):** a 401 during `auth login` means the submitted
   credentials were rejected → `login_failed` — NOT `not_logged_in`, whose

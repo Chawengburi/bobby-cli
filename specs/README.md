@@ -37,7 +37,7 @@ built, why it's shaped the way it is, and what's intentionally deferred.
 | Output color | chalk |
 | Local dev config | dotenv |
 | Transport | plain `fetch` — REST against auth-center, JSON-RPC (MCP `tools/call`) against session-memory |
-| Distribution | npm, global install (`npm install -g @babyferret/bobby-cli`) |
+| Distribution | npm, global install (`npm install -g @chawengburi/bobby-cli`) |
 
 ## One-paragraph summary
 
