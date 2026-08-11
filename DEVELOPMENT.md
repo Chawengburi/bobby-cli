@@ -61,6 +61,16 @@ This runs the built CLI directly. Good for a quick check, but it's not how a rea
 
 ### 5. Make `bobby-cli` a real command on your machine (`npm link`)
 
+> 🔵 **This is the official dev/test channel** (decided 2026-08-11). Dev/test
+> machines get bobby-cli by linking this repo — **not** by installing any
+> package from npm. The only published package is
+> `@chawengburi/bobby-cli`, and it is for production machines only.
+>
+> `@babyferret/bobby-cli@0.3.0` was the old dev/test channel and is now
+> retired: `package.json` can only carry one name, so it can never receive
+> another version. It stays on npm (unpublished later) until the Hostinger
+> production host has migrated to `@chawengburi`.
+
 ```bash
 npm link
 ```
@@ -160,7 +170,7 @@ rm chawengburi-bobby-cli-*.tgz
 
 Ask yourself:
 - Have you tested the real tarball install from Part 2?
-- Are you comfortable that `src/core/config.ts`'s baked-in URLs (`auth-center.phantaporntr.workers.dev`, `second-brain.phantaporntr.workers.dev`) are the ones you want live in the published package?
+- ~~Are you comfortable that `src/core/config.ts`'s baked-in URLs (`auth-center.phantaporntr.workers.dev`, `second-brain.phantaporntr.workers.dev`) are the ones you want live in the published package?~~ **Settled: yes, keep them** (2026-08-11). `phantaporntr` is the production account and the published package exists for production machines to install. Dev/test machines never rely on this default — see [Part 1 § 5 (`npm link`)](#5-make-bobby-cli-a-real-command-on-your-machine-npm-link). Do not "fix" these URLs to point at the testing account.
 - ~~Is `bobby-cli` really the name you want…~~ **Settled: `@chawengburi/bobby-cli`** (2026-08-04). Kept here only so the reasoning in step 4 still reads in order.
 
 If any of these feel uncertain, stop here and come back later. Nothing bad happens by waiting.
