@@ -14,7 +14,7 @@
 **Complexity:** S (half day)
 
 **Repo:** this ticket's changes are in the **`session-memory`** repo
-(`/Users/tanaphat/Work/000-chawengburi/session-memory/`), NOT `bobby-cli`.
+(`<workspace>/session-memory/`), NOT `bobby-cli`.
 It is listed under `bobby-cli/tickets/` alongside the others because it is
 an obligation created by `bobby-cli/specs/12-spec-agent-legible-output.md`,
 but the file changes below are all in the other repo.

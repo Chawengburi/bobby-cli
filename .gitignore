@@ -5,3 +5,6 @@ dist/
 .env
 .test-build/
 .DS_Store
+
+# agent scratch memory — never belongs in a public repo
+.claude/agent-memory/

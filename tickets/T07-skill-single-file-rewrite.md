@@ -32,7 +32,7 @@ auth) + project policy, all in one hand-maintained file.
   single-file revision) § 1 (layout), § 2 (same-change rule — this ticket
   must also record it in DEVELOPMENT.md), § 5 (description budget).
 - Current file:
-  `/Users/tanaphat/Work/000-chawengburi/.claude/skills/bobby-cli/SKILL.md`
+  `<chawengburi-repo>/.claude/skills/bobby-cli/SKILL.md`
   — **note this file lives in the `chawengburi` repo, not `bobby-cli`**,
   same cross-repo situation as T05. Re-read the live file before editing —
   it may have drifted since this ticket was written.
@@ -134,7 +134,7 @@ the chawengburi repo's `.claude/skills/bobby-cli/SKILL.md`). This is spec
 ## Acceptance Criteria
 
 1. Given the rewritten
-   `/Users/tanaphat/Work/000-chawengburi/.claude/skills/bobby-cli/SKILL.md`,
+   `<chawengburi-repo>/.claude/skills/bobby-cli/SKILL.md`,
    when measured with `wc -c`, then its size is ≤ ~2560 bytes (spec 12
    success criterion 3's "≤ ~2.5 KB").
 2. Given the file's frontmatter, then `description` mentions both domains

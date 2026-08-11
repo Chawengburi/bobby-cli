@@ -114,9 +114,9 @@ The ID is not reused.)
 ## Note on repo boundaries
 
 - T01, T02, T03, T04, T06 modify the `bobby-cli` repo
-  (`/Users/tanaphat/Work/000-chawengburi/bobby-cli/`).
+  (`<workspace>/bobby-cli/`).
 - T05 modifies the **`session-memory`** repo
-  (`/Users/tanaphat/Work/000-chawengburi/session-memory/`) — it's listed
+  (`<workspace>/session-memory/`) — it's listed
   here because it's an obligation created by spec 12, not because the code
   lives in this repo.
 - T07 modifies the **`chawengburi`** repo's
