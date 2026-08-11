@@ -35,18 +35,40 @@ jobs:
           cache: npm
           registry-url: https://registry.npmjs.org
 
-      # The v0.3.0 release shipped to npm without a matching git tag, so the
-      # published artifact could not be traced back to a commit. This step
-      # makes that class of drift a hard failure instead of a discovery.
-      - name: Verify tag matches package.json version
+      # Three things must state the same version: the tag being published,
+      # package.json, and schema/tools.json.
+      #
+      # tag <-> package.json: v0.3.0 shipped to npm with no matching git tag,
+      # so that published artifact can no longer be traced back to a commit.
+      #
+      # package.json <-> schema/tools.json: spec 09 requires these to be equal
+      # so that any consumer reading the manifest can tell whether it describes
+      # the binary they have installed. Nothing enforced it, and the manifest
+      # sat at 0.2.0 through both the 0.3.0 and 0.3.1 releases — the exact
+      # drift the rule was written in 2026-07-17 to prevent.
+      #
+      # Both mismatches are reported before failing, so a bad release shows
+      # every problem in one run instead of one per attempt. Note this gate
+      # only fires once a release/* tag has been pushed, and the tag ruleset
+      # restricts deleting those, so a mismatch caught here is awkward to
+      # correct; checking the package.json <-> schema pair in ci.yml as well
+      # would catch it at push time instead.
+      - name: Verify tag, package.json, and schema/tools.json versions agree
         run: |
           TAG_VERSION="${GITHUB_REF_NAME#release/}"
           PKG_VERSION="$(node -p "require('./package.json').version")"
-          echo "tag=$TAG_VERSION package.json=$PKG_VERSION"
+          SCHEMA_VERSION="$(node -p "require('./schema/tools.json').version")"
+          echo "tag=$TAG_VERSION package.json=$PKG_VERSION schema/tools.json=$SCHEMA_VERSION"
+          status=0
           if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
             echo "::error::tag $TAG_VERSION does not match package.json $PKG_VERSION"
-            exit 1
+            status=1
           fi
+          if [ "$SCHEMA_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::schema/tools.json $SCHEMA_VERSION does not match package.json $PKG_VERSION — spec 09 requires them to be equal; bump it in the same change"
+            status=1
+          fi
+          exit $status
 
       - run: npm ci
 
