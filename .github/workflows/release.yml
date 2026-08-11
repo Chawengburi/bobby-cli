@@ -27,9 +27,17 @@ jobs:
     environment: npm-production
 
     steps:
-      - uses: actions/checkout@v4
+      # Pinned to commit SHAs, not tags. This job holds NPM_TOKEN and uploads
+      # the artifact every machine in the org installs globally, so whatever
+      # runs inside it is part of that package's supply chain. `v4` is a
+      # mutable ref: its owner can repoint it, and the job would pick that up
+      # silently on the next release. Provenance does not cover this — it
+      # attests that the build ran in this repository, not that the actions
+      # were the ones intended. The comment after each SHA records the release
+      # it came from; Dependabot updates both together if enabled.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm

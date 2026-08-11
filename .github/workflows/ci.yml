@@ -9,9 +9,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # Actions are pinned to a commit SHA, not a tag. `v4` is a branch-like
+      # ref its owner can repoint at any time, so trusting it means trusting
+      # whatever that ref holds on the day a job runs. The comment after each
+      # SHA records the release it came from; Dependabot updates both together
+      # if it is enabled for github-actions.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
