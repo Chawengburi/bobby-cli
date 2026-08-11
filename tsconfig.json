@@ -9,7 +9,16 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "declaration": true,
+    // bobby-cli ships as a binary only — `package.json` declares `bin` and no
+    // `main`/`types`/`exports`, so the package cannot be imported as a library
+    // and emitted `.d.ts` files would serve no consumer. `src/core/` is an
+    // internal module by decision (spec 08), and the uploader work reuses it as
+    // more subcommands in this same binary (spec 17), not via import. The
+    // machine-readable contract for programmatic consumers is
+    // `schema/tools.json` (spec 09) plus the `--json` shapes (spec 12).
+    // If `@chawengburi/auth-client` is ever split out (spec 08 § "Why an
+    // internal module"), that package turns declarations back on — not this one.
+    "declaration": false,
     "types": ["node"]
   },
   "include": ["src/**/*"]
