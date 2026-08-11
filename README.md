@@ -139,18 +139,6 @@ Memory operations (`show`, `recall`, `remember`, `append`, `forget`) all call se
 
 ---
 
-## Before publishing to npm
-
-**How to actually cut a release: [RELEASE.md](./RELEASE.md).** Releases go out
-through CI from a `release/<version>` git tag, never from a laptop.
-
-- [x] Confirm the package defaults in `src/core/config.ts` point to the organization production deployment and keep the override path documented for local/test environments.
-- [x] Confirm `npm pack --dry-run` doesn't include `.env` — verified, only `.env.example` ships. CI re-checks this on every push.
-- [x] Decide the package name — scoped as `@chawengburi/bobby-cli` (decided 2026-08-04), which signals "internal tool, not a public offering" to anyone who stumbles on it. This supersedes the earlier trial publish under the personal `@babyferret` scope.
-- [ ] Create the `chawengburi` npm org, the `NPM_TOKEN` automation token, and the `npm-production` environment gate — none exist yet. See [RELEASE.md § One-time setup](./RELEASE.md#one-time-setup-not-done-yet).
-
----
-
 ## License
 
 ISC
