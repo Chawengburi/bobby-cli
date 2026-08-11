@@ -1,0 +1,35 @@
+version: 2
+
+# Both workflows pin their actions to commit SHAs rather than tags, which
+# means nothing arrives on its own any more — including security fixes.
+# Dependabot is what gives that back: it opens a PR that updates the SHA and
+# the `# vX.Y.Z` comment beside it together, so the pin stays both immutable
+# and current.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      # One PR for all of them. With two actions there is no value in a PR
+      # per action, and a single grouped bump is one CI run to read.
+      actions:
+        patterns: ['*']
+    commit-message:
+      prefix: ci
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      # Runtime and build-time dependencies are separated because they carry
+      # different risk: a bad `dependencies` bump ships to every machine that
+      # installs this CLI, while a `devDependencies` bump can only break CI.
+      production:
+        dependency-type: production
+      development:
+        dependency-type: development
+    commit-message:
+      prefix: chore
+      include: scope

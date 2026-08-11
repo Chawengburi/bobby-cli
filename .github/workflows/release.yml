@@ -35,7 +35,11 @@ jobs:
       # attests that the build ran in this repository, not that the actions
       # were the ones intended. The comment after each SHA records the release
       # it came from; Dependabot updates both together if enabled.
+      # fetch-depth: 0 because the ancestry check below needs main's history;
+      # the default shallow clone has only the tagged commit.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -77,6 +81,21 @@ jobs:
             status=1
           fi
           exit $status
+
+      # A git tag can point at any commit in the repository — nothing about
+      # `release/1.2.3` requires that commit to have been reviewed, or to
+      # exist on main at all. Without this, an admin (the only role the tag
+      # ruleset lets create these tags) could publish a commit that never
+      # landed, and the version guard above would happily agree with it.
+      - name: Verify the tagged commit is on main
+        run: |
+          git fetch --no-tags --quiet origin main
+          if git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "$GITHUB_SHA is on main"
+          else
+            echo "::error::tagged commit $GITHUB_SHA is not an ancestor of origin/main — releases must ship code that landed on main"
+            exit 1
+          fi
 
       - run: npm ci
 

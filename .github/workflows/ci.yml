@@ -5,9 +5,25 @@ on:
     branches: ['**']
   pull_request:
 
+# Declared here rather than relied on from the repository default, which is a
+# setting an admin can change without any workflow file recording that it
+# happened. This job only reads the tree.
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      # Run every version even after one fails — knowing it breaks on the
+      # floor but not the newest line is the useful signal.
+      fail-fast: false
+      matrix:
+        # The floor exactly as package.json declares it, plus the newest line
+        # in use. Testing only one version let `engines: ">=18"` stand for
+        # months while commander@15 required >=22.12.0, so the package could
+        # not actually run on node 18 or 20 at all.
+        node-version: ['22.13.0', '24']
     steps:
       # Actions are pinned to a commit SHA, not a tag. `v4` is a branch-like
       # ref its owner can repoint at any time, so trusting it means trusting
@@ -18,7 +34,7 @@ jobs:
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 22
+          node-version: ${{ matrix.node-version }}
           cache: npm
 
       # spec 09 requires schema/tools.json's version to equal package.json's,
