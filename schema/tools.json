@@ -1,6 +1,6 @@
 {
   "$comment": "Agent tool-schema manifest for bobby-cli. See specs/09-spec-agent-tool-schema.md. This file is read-only data — never run as a server. Every invocation spawns a fresh `bobby-cli` subprocess; no shared connection or shared state across calls. Keep in sync with src/commands/auth.ts and src/commands/memory.ts whenever a command or flag changes. INVOCATION SAFETY (see specs/09-spec-agent-tool-schema.md § Invocation safety): `invocation` strings are illustrative only. An executor MUST build an argv array (e.g. child_process.execFile/spawn with an args array) and substitute each {placeholder} as its own argv element — never run the template through a shell or string-concatenate it, or a value containing spaces/quotes/shell metacharacters (especially {password}) can break argument boundaries or inject commands. An optional field that has no value MUST have its flag and value omitted entirely from argv — do not substitute an empty string (e.g. `--tags {tags}` with no tags becomes just `--tags`, which would incorrectly consume the next argv token). Every `code` value in this file is a member of the canonical enum defined in bobby-cli/tickets/T02-memory-outcome-classifier.md — never invent a new one here.",
-  "version": "0.2.0",
+  "version": "0.3.2",
   "tools": [
     {
       "name": "auth_login",
