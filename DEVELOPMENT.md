@@ -158,11 +158,11 @@ rm chawengburi-bobby-cli-*.tgz
 >   choice is still open.
 > - **Publishing is no longer manual.** Releases go out through GitHub
 >   Actions from a `release/<version>` git tag, with a version guard and an
->   approval gate. **Follow [RELEASE.md](./RELEASE.md) instead** — running
->   `npm publish` by hand skips both.
+>   approval gate. **Never run `npm publish` by hand** — it skips both.
+>   The release runbook is kept outside this repo; ask a maintainer.
 >
 > Read this part to understand *what publishing does and why it's hard to
-> undo*. Use RELEASE.md to actually ship.
+> undo*. It is not the procedure used to actually ship.
 
 ⚠️ **Read Part 0 again before starting this section.** Everything from here on is about making bobby-cli downloadable by anyone in the world via `npm install -g @chawengburi/bobby-cli`. Take your time.
 
@@ -266,7 +266,7 @@ bobby-cli --version
 
 ### 10. Publishing updates later
 
-Do **not** repeat steps 6–8 by hand — that path is superseded. Bump the version, commit, then push a `release/<version>` tag and approve the run: [RELEASE.md § Cutting a release](./RELEASE.md#cutting-a-release).
+Do **not** repeat steps 6–8 by hand — that path is superseded. Bump the version, commit, then push a `release/<version>` tag and approve the run.
 
 ### 11. If something goes wrong after publishing
 
@@ -295,5 +295,5 @@ Do **not** repeat steps 6–8 by hand — that path is superseded. Bump the vers
 | Log in to npm | `npm login` then `npm whoami` to confirm |
 | Check if the name is free | `npm view @chawengburi/bobby-cli` (404 = free) |
 | Bump the version before a new release | `npm version patch` / `minor` / `major` |
-| **Actually publish (public, hard to undo)** | Don't — push a `release/<version>` tag and approve the run. See [RELEASE.md](./RELEASE.md). |
+| **Actually publish (public, hard to undo)** | Don't — push a `release/<version>` tag and approve the run. |
 | Soft-remove a bad published version | `npm deprecate @chawengburi/bobby-cli@<version> "<message>"` |

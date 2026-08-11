@@ -109,9 +109,8 @@ explicitly, so neither depends on the other being remembered.
 
 This supersedes the interim `@babyferret/bobby-cli@0.3.0` publish (2026-07-21),
 which went out under a personal/trial npm account. The org, the automation
-token, and the approval gate do not exist yet — see
-[../RELEASE.md](../RELEASE.md) § One-time setup for what has to be created
-before the first release under this name.
+token, and the approval gate are all in place as of 2026-08-10; the release
+procedure itself is documented outside this repository.
 
 ### 4. `--tags` inconsistency in `memory show`/`memory recall` — fixed (2026-07-13)
 
