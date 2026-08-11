@@ -61,12 +61,13 @@ jobs:
       - name: Pack check
         run: node scripts/check-pack.mjs
 
-      # No `--provenance`: npm can only generate provenance attestations for
-      # packages built from a PUBLIC repository, and Chawengburi/bobby-cli is
-      # private. Adding the flag here would fail the publish step outright.
-      # If the repo is ever made public, append `--provenance` — the
-      # `id-token: write` permission above is already in place for it.
+      # `--provenance` requires a PUBLIC repository. Chawengburi/bobby-cli IS
+      # public (an earlier version of this comment claimed it was private and
+      # used that to justify omitting the flag — that was wrong, and the same
+      # mistaken assumption is why several specs/tickets in this repo were
+      # written as if only insiders would read them). The `id-token: write`
+      # permission above is what lets npm sign the attestation.
       - name: Publish to npm
-        run: npm publish --access public
+        run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
