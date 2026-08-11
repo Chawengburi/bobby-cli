@@ -58,21 +58,21 @@ Every command accepts `--json` for machine-readable output — this is what agen
 **bobby-cli has one fixed backend, baked into the code** (`src/core/config.ts`) — not a per-installer setting. `auth login` never asks for a server URL, only email + password. This is deliberate: bobby-cli is published to npm purely so it's easy to `npm install -g` across every machine/agent in our own setup, not so arbitrary third parties can point it at their own infrastructure.
 
 ```
-DEFAULT_AUTH_CENTER_URL     = https://auth-center.phantaporntr.workers.dev
-DEFAULT_SESSION_MEMORY_URL  = https://second-brain.phantaporntr.workers.dev/mcp
+DEFAULT_AUTH_CENTER_URL     = https://auth-center.example.com
+DEFAULT_SESSION_MEMORY_URL  = https://second-brain.example.com/mcp
 ```
 
-These are the real production URLs — every install of the published package falls back to this deployment if no env override is configured.
+These are the package default URLs for the organization deployment; if you are using your own environment, override them with your own values instead of editing the package defaults.
 
 ### Overriding the fixed backend (dev/testing only)
 
 `AUTH_CENTER` / `SESSION_MEMORY_URL` env vars override the built-in default, for pointing *your own* dev environment at the separate testing-account deployment or a local `wrangler dev` — this is not something end users of the published package are expected to touch:
 
 ```bash
-AUTH_CENTER=https://auth-center.tanaphat-jaroonrueang.workers.dev SESSION_MEMORY_URL=https://second-brain.tanaphat-jaroonrueang.workers.dev/mcp bobby-cli memory show
+AUTH_CENTER=https://auth-center.example.com SESSION_MEMORY_URL=https://second-brain.example.com/mcp bobby-cli memory show
 ```
 
-The override applies per-command and needs no re-login — `auth login` itself also respects it (see `resolveAuthCenterUrl`/`resolveSessionMemoryUrl` in `src/core/config.ts`), so you can log in against a test deployment without touching the fixed default.
+The override applies per-command and needs no re-login — `auth login` itself also respects it (see `resolveAuthCenterUrl`/`resolveSessionMemoryUrl` in `src/core/config.ts`), so you can log in against a test deployment or local environment without touching the fixed default.
 
 ### Device-level `.env`
 
@@ -144,7 +144,7 @@ Memory operations (`show`, `recall`, `remember`, `append`, `forget`) all call se
 **How to actually cut a release: [RELEASE.md](./RELEASE.md).** Releases go out
 through CI from a `release/<version>` git tag, never from a laptop.
 
-- [x] Swap `DEFAULT_AUTH_CENTER_URL` and `DEFAULT_SESSION_MEMORY_URL` in `src/core/config.ts` to the real production URLs — done, they now point at `auth-center.phantaporntr.workers.dev` / `second-brain.phantaporntr.workers.dev`.
+- [x] Confirm the package defaults in `src/core/config.ts` point to the organization production deployment and keep the override path documented for local/test environments.
 - [x] Confirm `npm pack --dry-run` doesn't include `.env` — verified, only `.env.example` ships. CI re-checks this on every push.
 - [x] Decide the package name — scoped as `@chawengburi/bobby-cli` (decided 2026-08-04), which signals "internal tool, not a public offering" to anyone who stumbles on it. This supersedes the earlier trial publish under the personal `@babyferret` scope.
 - [ ] Create the `chawengburi` npm org, the `NPM_TOKEN` automation token, and the `npm-production` environment gate — none exist yet. See [RELEASE.md § One-time setup](./RELEASE.md#one-time-setup-not-done-yet).

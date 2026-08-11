@@ -170,7 +170,7 @@ rm chawengburi-bobby-cli-*.tgz
 
 Ask yourself:
 - Have you tested the real tarball install from Part 2?
-- ~~Are you comfortable that `src/core/config.ts`'s baked-in URLs (`auth-center.phantaporntr.workers.dev`, `second-brain.phantaporntr.workers.dev`) are the ones you want live in the published package?~~ **Settled: yes, keep them** (2026-08-11). `phantaporntr` is the production account and the published package exists for production machines to install. Dev/test machines never rely on this default — see [Part 1 § 5 (`npm link`)](#5-make-bobby-cli-a-real-command-on-your-machine-npm-link). Do not "fix" these URLs to point at the testing account.
+- ~~Are you comfortable that `src/core/config.ts`'s baked-in URLs are the ones you want live in the published package?~~ **Settled: yes, keep the production defaults** (2026-08-11). The package is intended for production machines in the org, while dev/test deployments use env overrides or local `.env` files instead of changing the package defaults — see [Part 1 § 5 (`npm link`)](#5-make-bobby-cli-a-real-command-on-your-machine-npm-link).
 - ~~Is `bobby-cli` really the name you want…~~ **Settled: `@chawengburi/bobby-cli`** (2026-08-04). Kept here only so the reasoning in step 4 still reads in order.
 
 If any of these feel uncertain, stop here and come back later. Nothing bad happens by waiting.
