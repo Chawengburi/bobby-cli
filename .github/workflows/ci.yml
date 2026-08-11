@@ -16,6 +16,25 @@ jobs:
           node-version: 22
           cache: npm
 
+      # spec 09 requires schema/tools.json's version to equal package.json's,
+      # so a consumer reading the manifest can tell whether it describes the
+      # binary they have installed. release.yml enforces this too, but only
+      # once a release/* tag exists — and the tag ruleset restricts deleting
+      # those, so by then a mismatch is awkward to correct. Checking on every
+      # push catches it in the commit that introduced it, which is the whole
+      # point: the manifest sat at 0.2.0 through the 0.3.0 and 0.3.1 releases
+      # precisely because nothing looked until it was too late to be cheap.
+      # No dependencies needed, so this runs before npm ci and fails fast.
+      - name: Verify schema/tools.json version matches package.json
+        run: |
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          SCHEMA_VERSION="$(node -p "require('./schema/tools.json').version")"
+          echo "package.json=$PKG_VERSION schema/tools.json=$SCHEMA_VERSION"
+          if [ "$SCHEMA_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error file=schema/tools.json::version $SCHEMA_VERSION does not match package.json $PKG_VERSION — spec 09 requires them to be equal; bump it in the same change"
+            exit 1
+          fi
+
       - run: npm ci
 
       - name: Build (typecheck + emit)
