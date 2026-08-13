@@ -1,8 +1,9 @@
 // Thin JSON-RPC client against session-memory's /mcp endpoint — adapted from the
 // upstream second-brain-cli's mcpClient.ts pattern (github.com/rahilp/second-brain-cli).
-// No MCP SDK dependency needed on the client side: initialize, capture the
-// mcp-session-id header, then call tools/call. Every session-memory tool
-// (remember/append/recall/list_recent/forget) returns { content: [{ type: "text", text }] }.
+// No MCP SDK dependency needed on the client side: post tools/call directly and
+// fall back to the initialize handshake only if the server demands it (see
+// mcpToolCall). Every session-memory tool (remember/append/recall/list_recent/forget)
+// returns { content: [{ type: "text", text }] }.
 
 interface JsonRpcRequest {
   jsonrpc: "2.0";
@@ -97,35 +98,65 @@ export async function mcpToolCall(
     }
   };
 
-  const initRes = await post({
-    jsonrpc: "2.0",
-    id: 1,
-    method: "initialize",
-    params: {
-      protocolVersion: "2024-11-05",
-      capabilities: {},
-      clientInfo: { name: "bobby-cli", version: VERSION },
-    },
-  });
-
-  if (initRes.status === 401 || initRes.status === 403) {
-    throw new McpError(
+  const unauthorized = (status: number) =>
+    new McpError(
       "Not authorized — your session may have expired. Run `bobby-cli auth login` again.",
-      { status: initRes.status }
+      { status }
     );
-  }
-  if (!initRes.ok) {
-    throw new McpError(`MCP init failed: HTTP ${initRes.status}`, { status: initRes.status });
-  }
 
-  const sessionHeader: Record<string, string> = {};
-  const sessionId = initRes.headers.get("mcp-session-id");
-  if (sessionId) sessionHeader["mcp-session-id"] = sessionId;
+  const toolBody: JsonRpcRequest = {
+    jsonrpc: "2.0",
+    id: 2,
+    method: "tools/call",
+    params: { name: toolName, arguments: args },
+  };
 
-  const toolRes = await post(
-    { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: toolName, arguments: args } },
-    sessionHeader
-  );
+  // No initialize handshake on the happy path. session-memory runs the MCP
+  // transport statelessly (`sessionIdGenerator: undefined`,
+  // session-memory/src/index.ts:1331): it builds a fresh server per request, so
+  // the handshake establishes nothing and the mcp-session-id it hands back is
+  // never consulted. What it does cost is a second round trip per operation —
+  // and a second chance to be hit by a transient edge failure. On 2026-08-13 a
+  // one-off HTTP 404 on the handshake killed a `remember` that had not sent a
+  // single byte of content yet. Verified live the same day: a bare tools/call
+  // answers 200 for read tools and write tools alike.
+  //
+  // This is deliberately outside the MCP spec, which requires initialize first,
+  // so the handshake stays as a fallback rather than being deleted: a
+  // deployment that does enforce it (a stateful server, a future SDK bump, or
+  // the production Worker if it ever diverges from dev/test) rejects the bare
+  // call with 400, and we replay it properly. Safe on writes because a call
+  // rejected at the transport never reached the tool.
+  let toolRes = await post(toolBody);
+
+  if (toolRes.status === 401 || toolRes.status === 403) throw unauthorized(toolRes.status);
+
+  if (toolRes.status === 400) {
+    const initRes = await post({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2024-11-05",
+        capabilities: {},
+        clientInfo: { name: "bobby-cli", version: VERSION },
+      },
+    });
+
+    if (initRes.status === 401 || initRes.status === 403) throw unauthorized(initRes.status);
+    if (!initRes.ok) {
+      throw new McpError(`MCP init failed: HTTP ${initRes.status}`, { status: initRes.status });
+    }
+
+    const sessionHeader: Record<string, string> = {};
+    const sessionId = initRes.headers.get("mcp-session-id");
+    if (sessionId) sessionHeader["mcp-session-id"] = sessionId;
+
+    // Replayed once, never in a loop: if this still fails, the 400 was about the
+    // request itself, not the missing handshake, and the error below reports it.
+    toolRes = await post(toolBody, sessionHeader);
+    if (toolRes.status === 401 || toolRes.status === 403) throw unauthorized(toolRes.status);
+  }
 
   if (!toolRes.ok) {
     throw new McpError(`MCP error calling ${toolName}: HTTP ${toolRes.status}`, {
