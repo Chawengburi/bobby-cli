@@ -8,3 +8,6 @@ dist/
 
 # agent scratch memory — never belongs in a public repo
 .claude/agent-memory/
+
+# ค่าจริงของ placeholder ในสเปก — public repo อย่าให้หลุด (ดู .specs-local.example.md)
+.specs-local.md
