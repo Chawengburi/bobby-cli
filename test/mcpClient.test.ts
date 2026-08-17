@@ -16,20 +16,32 @@ afterEach(() => {
   globalThis.fetch = realFetch;
 });
 
+// The happy path is a single POST — the initialize handshake is only sent if the
+// server answers 400 (see mcpClient.ts). So the first response a stub hands back
+// is the tool response, not an init response.
 function stubTransport(toolResponse: Response): void {
+  globalThis.fetch = (async () => toolResponse) as typeof fetch;
+}
+
+// Records every request so a test can assert how many round trips were made and
+// what headers each carried.
+function recordingTransport(responses: Response[]): Array<{ headers: Headers; body: string }> {
+  const seen: Array<{ headers: Headers; body: string }> = [];
   let call = 0;
-  globalThis.fetch = (async () => {
+  globalThis.fetch = (async (_url: string, init: RequestInit) => {
+    seen.push({ headers: new Headers(init.headers), body: String(init.body) });
+    const res = responses[call] ?? responses[responses.length - 1];
     call += 1;
-    // First POST is `initialize`; only its status and mcp-session-id header are
-    // read, so an empty 200 is enough.
-    if (call === 1) {
-      return new Response("{}", {
-        status: 200,
-        headers: { "content-type": "application/json", "mcp-session-id": "sess-1" },
-      });
-    }
-    return toolResponse;
-  }) as typeof fetch;
+    return res;
+  }) as unknown as typeof fetch;
+  return seen;
+}
+
+function initResponse(): Response {
+  return new Response("{}", {
+    status: 200,
+    headers: { "content-type": "application/json", "mcp-session-id": "sess-1" },
+  });
 }
 
 function jsonRpc(body: unknown): Response {
@@ -158,6 +170,79 @@ test("a 401 from the transport is not_logged_in, ahead of any tool result", asyn
 
   await assert.rejects(
     () => mcpToolCall("https://example.test/mcp", "tok", "list_recent", {}),
-    (err: unknown) => err instanceof McpError && classifyMcpFailure(err).code === "not_logged_in",
+    (err: unknown) => {
+      assert.ok(err instanceof McpError);
+      assert.equal(classifyMcpFailure(err).code, "not_logged_in");
+      // The human-facing wording has to survive the handshake removal: this 401
+      // now arrives on the tool call, where it used to arrive on initialize.
+      assert.match(err.message, /bobby-cli auth login/);
+      return true;
+    },
   );
+});
+
+// ── No handshake on the happy path (2026-08-13) ──────────────────────────────
+
+test("a tool call is a single round trip — no initialize handshake", async () => {
+  const seen = recordingTransport([
+    jsonRpc({ jsonrpc: "2.0", id: 2, result: { content: [{ type: "text", text: "Stored. ID: abc" }] } }),
+  ]);
+
+  assert.equal(await mcpToolCall("https://example.test/mcp", "tok", "remember", {}), "Stored. ID: abc");
+  assert.equal(seen.length, 1);
+  assert.match(seen[0].body, /"method":"tools\/call"/);
+  assert.equal(seen[0].headers.get("mcp-session-id"), null);
+});
+
+test("a 400 falls back to the handshake and replays the call with the session id", async () => {
+  // What a server that does enforce initialize first answers — the reason the
+  // handshake is kept as a fallback instead of deleted.
+  const seen = recordingTransport([
+    new Response(JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: -32000, message: "Bad Request: Server not initialized" } }), {
+      status: 400,
+      headers: { "content-type": "application/json" },
+    }),
+    initResponse(),
+    jsonRpc({ jsonrpc: "2.0", id: 2, result: { content: [{ type: "text", text: "Stored. ID: abc" }] } }),
+  ]);
+
+  assert.equal(await mcpToolCall("https://example.test/mcp", "tok", "remember", {}), "Stored. ID: abc");
+  assert.equal(seen.length, 3);
+  assert.match(seen[1].body, /"method":"initialize"/);
+  assert.match(seen[2].body, /"method":"tools\/call"/);
+  assert.equal(seen[2].headers.get("mcp-session-id"), "sess-1");
+});
+
+test("the 400 fallback replays exactly once — it does not loop", async () => {
+  // A 400 that was never about the handshake (malformed arguments, say) must
+  // cost one extra round trip and then surface, not retry forever.
+  const seen = recordingTransport([
+    new Response("bad", { status: 400 }),
+    initResponse(),
+    new Response("bad", { status: 400 }),
+  ]);
+
+  await assert.rejects(
+    () => mcpToolCall("https://example.test/mcp", "tok", "remember", {}),
+    (err: unknown) => {
+      assert.ok(err instanceof McpError);
+      assert.match(err.message, /HTTP 400/);
+      assert.equal(classifyMcpFailure(err).code, "server");
+      return true;
+    },
+  );
+  assert.equal(seen.length, 3);
+});
+
+test("a transient non-400 failure is never retried — writes must not be replayed", async () => {
+  // The 404 that started this: one bad response kills the call. Retrying a
+  // tools/call is what duplicate detection exists to punish, so the fallback is
+  // scoped to 400 alone.
+  const seen = recordingTransport([new Response("nope", { status: 404 })]);
+
+  await assert.rejects(
+    () => mcpToolCall("https://example.test/mcp", "tok", "remember", {}),
+    (err: unknown) => err instanceof McpError && classifyMcpFailure(err).code === "server",
+  );
+  assert.equal(seen.length, 1);
 });
