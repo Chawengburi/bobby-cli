@@ -44,8 +44,9 @@ Success codes (envelope keeps `ok: true`):
 | `duplicate_rejected` | memory remember, rejected as >95% duplicate (not stored) |
 | `appended` | memory append succeeded |
 | `forgotten` | memory forget succeeded |
-| `not_found` | memory append/forget targeted a nonexistent ID |
-| `results` | memory recall/show, including empty results |
+| `not_found` | memory append/forget targeted a nonexistent ID · uploader fetch on an id that does not exist, or whose markdown is not indexed yet (spec 18 § 6.3 — exit 0, the question was answered) |
+| `results` | memory recall/show, uploader search — including empty results |
+| `fetched` | uploader fetch returned a document's markdown (spec 17 § 3.3) |
 | `unclassified` | the server `text` didn't match any known pattern — never guess |
 | `status` | auth show (see T04) |
 
@@ -58,7 +59,7 @@ so this enum is complete in one place:
 | `login_failed` | auth-center rejected `auth login` credentials (401 during login) |
 | `permission_denied` | scope denied (session-memory 200 + `Requires scope:` text, or auth-center 403) |
 | `network` | server unreachable |
-| `server` | server rejected the request (other 4xx/5xx) |
+| `server` | server rejected the request (other 4xx/5xx). On `uploader *` the envelope also carries `reason`, auth-center's own slug — five server-side conditions share this one code, and only `reason` tells them apart |
 | `usage` | bad local input (unknown flag, missing arg) |
 
 ## The exact `text` → `code` contract (this ticket implements the success rows)

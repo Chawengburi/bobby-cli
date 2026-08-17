@@ -40,6 +40,8 @@ bobby-cli memory show
 | `bobby-cli memory remember [text]` | Save a memory (reads stdin if no text given) |
 | `bobby-cli memory append <id> <text>` | Add more context to an existing memory |
 | `bobby-cli memory forget <id>` | Delete a memory |
+| `bobby-cli uploader search [query]` | Search indexed documents (owner role required) |
+| `bobby-cli uploader fetch <id>` | Read one document's markdown by record id |
 
 ### Options
 
@@ -49,6 +51,18 @@ bobby-cli memory recall "last week's decision" -n 10
 bobby-cli memory recall "architecture" --tags engineering
 bobby-cli memory recall "architecture" --tags engineering,auth-center   # multiple tags: matches any (OR)
 ```
+
+```bash
+bobby-cli uploader search "reservation" --document-type reservation_list -n 5
+bobby-cli uploader search --month 2026-04 --source-system hoteltime      # filters only, no query
+bobby-cli uploader fetch abc123 --max-chars 4000
+```
+
+Document search goes through auth-center, which holds the one credential for the
+document service and checks that the logged-in identity has the `owner` role.
+There is nothing to configure on this side, and the CLI never sees that
+credential. A `403` means the account lacks the role — logging in again will not
+change that.
 
 Every command accepts `--json` for machine-readable output — this is what agents/scripts should parse, not the human-formatted text.
 
