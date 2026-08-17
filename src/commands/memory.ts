@@ -6,6 +6,7 @@ import {
   CliUsageError,
   mcpToolCall,
   McpError,
+  parseLimit,
   classifyMcpFailure,
   classifyCliAuthFailure,
   SERVER_HINT,
@@ -61,23 +62,15 @@ function usageFailure(message: string): CallToolResult {
   return { ok: false, error: message, code: "usage", hint: message };
 }
 
-// Validated locally rather than shipped to the server: `parseInt("abc")` is
-// NaN, JSON.stringify turns NaN into null, and the Worker then rejects it with
-// a zod type error — a round-trip that ends in a `server` code for what is
-// plainly bad local input.
-// Digits-only before Number(), not Number() alone: Number("1e3") is 1000 and
-// Number("0x10") is 16, both of which pass Number.isInteger and would ship a
-// value the caller never typed. `1e20` would even survive the integer check and
-// reach the Worker — the exact round-trip this validation exists to prevent.
-function parseLimit(raw: string, flag: string): number | CallToolResult {
-  if (!/^\d+$/.test(raw.trim())) {
-    return usageFailure(`${flag} must be a positive whole number — got "${raw}".`);
+// Wraps the shared core/parseLimit.ts (which throws) back into this domain's
+// envelope. The message the user sees is unchanged from when the parsing lived
+// here.
+function limitOrFailure(raw: string, flag: string): number | CallToolResult {
+  try {
+    return parseLimit(raw, flag);
+  } catch (err) {
+    return usageFailure((err as Error).message);
   }
-  const n = Number(raw.trim());
-  if (!Number.isSafeInteger(n) || n <= 0) {
-    return usageFailure(`${flag} must be a positive whole number — got "${raw}".`);
-  }
-  return n;
 }
 
 function emit(result: CallToolResult, json?: boolean): void {
@@ -127,7 +120,7 @@ export function registerMemoryCommand(program: Command): void {
     .option(...PROFILE_OPTION)
     .option("--json", "machine-readable output")
     .action(async (opts: BaseOpts & { limit: string; tags?: string }) => {
-      const limit = parseLimit(opts.limit, "-n/--limit");
+      const limit = limitOrFailure(opts.limit, "-n/--limit");
       if (typeof limit !== "number") return emit(limit, opts.json);
       const result = await callTool(
         "list_recent",
@@ -148,7 +141,7 @@ export function registerMemoryCommand(program: Command): void {
     .option(...PROFILE_OPTION)
     .option("--json", "machine-readable output")
     .action(async (query: string, opts: BaseOpts & { limit: string; tags?: string }) => {
-      const limit = parseLimit(opts.limit, "-n/--limit");
+      const limit = limitOrFailure(opts.limit, "-n/--limit");
       if (typeof limit !== "number") return emit(limit, opts.json);
       const result = await callTool(
         "recall",

@@ -47,11 +47,46 @@ export function classifyMcpFailure(err: McpError): Failure {
 // auth-center 401s outside of `auth login` are not a defined case in spec
 // 12's table — only login-time 401 means "login_failed". Anywhere else, an
 // AuthCenterError 401 falls through to "server" (deliberate, per T03).
-export function classifyAuthCenterFailure(err: AuthCenterError, context: "login" | "other"): Failure {
+//
+// The "uploader" context is the one exception, added by spec 18 § 6.3: on
+// /uploader/* a 401 means the caller's OWN token is dead, so `bobby-cli auth
+// login` genuinely fixes it. Calling this with "other" for uploader errors
+// would classify every expired token as `server` — and the T03 test suite
+// would stay green, because `server` is what "other" is supposed to return.
+export function classifyAuthCenterFailure(
+  err: AuthCenterError,
+  context: "login" | "other" | "uploader"
+): Failure {
   if (context === "login" && err.status === 401) return { code: "login_failed", hint: LOGIN_FAILED_HINT };
+  if (context === "uploader" && err.status === 401) return { code: "not_logged_in", hint: NOT_LOGGED_IN_HINT };
   if (err.status === 403) return { code: "permission_denied", hint: PERMISSION_DENIED_HINT };
   if (err.networkCause) return { code: "network", hint: NETWORK_HINT };
+  // A 400 from /uploader/* is `usage`: every documented cause is screened
+  // client-side first, so one that still arrives is input this CLI failed to
+  // catch — a bug worth reporting as such, not an outage.
+  if (context === "uploader" && err.status === 400) return { code: "usage", hint: err.message };
+  if (context === "uploader") return { code: "server", hint: uploaderServerHint(err.slug) };
   return { code: "server", hint: SERVER_HINT };
+}
+
+// Five distinct server-side slugs collapse into `code: "server"`, so the hint
+// is the only place left to say what a human should actually do about it.
+// Machines read `reason` (the slug itself) off the envelope instead.
+function uploaderServerHint(slug?: string): string {
+  switch (slug) {
+    case "uploader_not_configured":
+      return "The document service is not configured on the server. Tell the user to contact the auth-center administrator — logging in again will not help.";
+    case "uploader_auth_failed":
+      return "The server's own document-service credential was rejected. Tell the user to contact the auth-center administrator — this is not their login, and logging in again will not help.";
+    case "uploader_rate_limited":
+      return "The document service is rate limiting requests. Wait and try again later.";
+    case "too_many_requests":
+      return "You are asking too often. Wait a moment before trying again.";
+    case "uploader_unavailable":
+      return "The document service is unavailable right now. Report it and try again later.";
+    default:
+      return SERVER_HINT;
+  }
 }
 
 export function classifyCliAuthFailure(_err: CliAuthError): Failure {

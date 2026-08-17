@@ -5,6 +5,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { registerAuthCommand } from "./commands/auth.js";
 import { registerMemoryCommand } from "./commands/memory.js";
+import { registerUploaderCommand } from "./commands/uploader.js";
 import { printError, printJson } from "./output.js";
 import { VERSION } from "./version.js";
 
@@ -44,6 +45,10 @@ program.configureOutput({ writeErr: () => {} });
 
 registerAuthCommand(program);
 registerMemoryCommand(program);
+// Registered after exitOverride()/configureOutput above, like the others:
+// subcommands copy those settings when they are created, so a command
+// registered before them loses the --json usage envelope (T03 AC7).
+registerUploaderCommand(program);
 
 process.on("unhandledRejection", (err) => {
   // Never dump the raw error object — it could echo request/response bodies

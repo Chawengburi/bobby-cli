@@ -17,6 +17,11 @@ export type { AuthCenterUser, LoginResult, MintedApiToken, ApiTokenSummary } fro
 
 export { mcpToolCall, McpError } from "./mcpClient.js";
 
+export { parseLimit } from "./parseLimit.js";
+
+export { uploaderSearch, uploaderFetch } from "./uploaderClient.js";
+export type { UploaderSearchResponse, UploaderFetchResponse } from "./uploaderClient.js";
+
 export { describeNetworkError } from "./networkError.js";
 
 export {

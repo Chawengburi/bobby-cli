@@ -32,10 +32,15 @@ export interface MintedApiToken {
 export class AuthCenterError extends Error {
   status?: number;
   networkCause?: string;
-  constructor(message: string, opts?: { status?: number; networkCause?: string }) {
+  // The machine-readable `error` slug from the response body, where the
+  // endpoint sends one (/uploader/* always does). Callers branch on this plus
+  // the HTTP status — never on the human message.
+  slug?: string;
+  constructor(message: string, opts?: { status?: number; networkCause?: string; slug?: string }) {
     super(message);
     this.status = opts?.status;
     this.networkCause = opts?.networkCause;
+    this.slug = opts?.slug;
   }
 }
 
