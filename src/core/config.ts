@@ -27,9 +27,20 @@ export interface Credentials {
   email: string;
   tenantId: string | null;
   apiToken: string;
-  apiTokenId: string;
+  // null for a machine login: /auth/m2m/login returns the token itself and
+  // nothing else, so the CLI genuinely does not know the token's id. Empty
+  // string would be a lie the same shape as a real value.
+  apiTokenId: string | null;
   apiTokenLabel: string;
-  scopes: string[];
+  // null means unknown, not none. /auth/m2m/login hands back a token and
+  // nothing about it, so a machine login cannot report its own scopes — and an
+  // empty array would read as "this identity may do nothing", which is a
+  // different, wrong claim.
+  scopes: string[] | null;
+  // Absent in every file written before machine logins existed — read it as
+  // "user" rather than migrating, so an old credentials file keeps working
+  // untouched. Only ever written explicitly from here on.
+  principalType?: "user" | "machine";
   createdAt: string;
   expiresAt: string | null;
 }
