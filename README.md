@@ -32,6 +32,7 @@ bobby-cli memory show
 | Command | Description |
 |---|---|
 | `bobby-cli auth login` | Log in to auth-center and mint a session-memory API token |
+| `bobby-cli auth login --machine` | Log in as a machine user (own memory space; see below) |
 | `bobby-cli auth show` | Show the current login (never prints the raw token) |
 | `bobby-cli auth forget` | Delete the local credentials file |
 | `bobby-cli memory show` | List recent memories (chronological, with tag filtering) |
@@ -50,6 +51,53 @@ bobby-cli memory recall "architecture" --tags engineering,auth-center   # multip
 ```
 
 Every command accepts `--json` for machine-readable output — this is what agents/scripts should parse, not the human-formatted text.
+
+### Machine logins
+
+```bash
+bobby-cli auth login --machine --profile <name>
+```
+
+A machine user is an identity owned by a person but distinct from them, created
+by an owner in auth-center. It matters because **session-memory owns entries by
+the machine's own id, not by its owner's** — so a machine identity gets a memory
+space of its own, and two machine users get two separate spaces. That is how a
+shared host (a Discord bot serving several guilds) keeps one guild's memory from
+landing in another's, or in the admin's personal one.
+
+Machine accounts cannot use the normal login: `POST /auth/tokens` rejects them
+with 403, so `--machine` goes to `/auth/m2m/login`, which returns an API token
+directly. Consequences worth knowing:
+
+- **`--label` is refused.** auth-center labels every machine login `m2m-login`.
+  Two identities need two machine users, not two labels.
+- **One live token per machine user.** Logging in again revokes the previous
+  one, so a single machine user cannot serve two profiles at once.
+- **The new token copies the machine's *previous* token**, not a fresh grant:
+  auth-center reads the machine's most recent token record and reuses its
+  scopes and resource. Two things follow, and both are set where the machine
+  user is created, not here:
+  - A machine user whose first token was never issued comes back with **no
+    scopes**. Create machine users through `POST /auth/machine-users`, which
+    issues that first token with the scopes you pass.
+  - A machine user whose latest token was for a **different resource** gets a
+    token for that resource, which session-memory rejects. Keep one machine
+    user to one resource.
+- **The token is used once before it is saved.** Neither problem above is
+  visible in the login response, and left unchecked both surface later as a
+  401 — which reports `not_logged_in`, whose hint says to log in again, the
+  exact command that produced the broken token. So `--machine` makes one
+  `list_recent` call first:
+  - rejected or scope-denied → **nothing is written**, and the error names the
+    cause and where to fix it (`permission_denied`, so an agent stops instead
+    of retrying);
+  - session-memory unreachable → the credentials **are** saved with
+    `verified: false` and a warning, because an outage is not evidence about
+    the token.
+- **`auth show` cannot list the scopes.** The m2m response does not include
+  them, so it reports `scopes: null` — unknown, as distinct from `[]`, which
+  would claim the identity may do nothing — alongside
+  `principalType: "machine"`.
 
 ---
 

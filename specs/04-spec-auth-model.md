@@ -95,14 +95,68 @@ Contents (`src/config.ts`'s `Credentials` interface):
   sessionMemoryUrl: string;
   email: string;
   tenantId: string | null;
-  apiToken: string;        // the raw sm_live_... token
-  apiTokenId: string;
-  apiTokenLabel: string;   // "bobby-cli@<hostname>"
-  scopes: string[];
+  apiToken: string;              // the raw sm_live_... token
+  apiTokenId: string | null;     // null on a machine login — see below
+  apiTokenLabel: string;         // "bobby-cli@<hostname>", or "m2m-login"
+  scopes: string[] | null;       // null = unknown (machine), [] = none
+  principalType?: "user" | "machine";  // absent in files written before 0.4.0 → "user"
   createdAt: string;
   expiresAt: string | null;
 }
 ```
+
+### Machine logins (added 0.4.0)
+
+`auth login --machine` exists because machine accounts cannot use the two-tier
+flow at all: auth-center's `POST /auth/tokens` checks `accountType` and answers
+`403` ("Machine users must use /auth/machine-users/:id/rotate-token, not this
+endpoint"). The machine door is `POST /auth/m2m/login`, which returns the
+`sm_live_...` token directly — one call, no session-token exchange, no mint, no
+rotate-by-label.
+
+The reason to use it: **session-memory owns entries by the machine's own id**
+(`claims.sub`) rather than its owner's, deliberately, so that a machine token
+cannot read its owner's private entries. A machine identity therefore gets a
+memory space of its own, and one machine user per Discord guild is what keeps
+guild memories separate from each other and from the admin's.
+
+Three fields cannot be filled in on this path, and the CLI must not invent them:
+
+| field | value | why |
+|---|---|---|
+| `apiTokenId` | `null` | the response carries no token record; `""` would be indistinguishable from a real id |
+| `scopes` | `null` | never returned; `[]` would assert "may do nothing" instead of "not known" |
+| `apiTokenLabel` | `"m2m-login"` | auth-center hardcodes it — which is why `--machine` **rejects** `--label` rather than ignoring it |
+
+Two provisioning-time constraints follow from auth-center reusing the machine's
+*previous* token record (its scopes and its resource) on every m2m login: a
+machine user that never had a first token issued comes back with no scopes, and
+one whose latest token was for another resource comes back with a token
+session-memory will reject. Both are fixed where machine users are created
+(`POST /auth/machine-users`), not here.
+
+#### The token is proved before it is saved
+
+Neither constraint is visible in the login response, and bobby-cli cannot
+introspect — that endpoint requires a secret no client holds. Left unchecked,
+both surface on the *next* command as a 401, which spec 12 classifies as
+`not_logged_in`, whose hint tells the operator to run `bobby-cli auth login` —
+the exact command that just produced the unusable token. The loop is the
+failure, not the 401.
+
+So `--machine` spends one `list_recent` call before writing anything, and
+splits the outcome by what the answer is evidence *about*:
+
+| answer | meaning | what happens |
+|---|---|---|
+| success | the identity works | credentials saved, `verified: true` |
+| 401/403, or `Requires scope: …` | evidence about the **token** | **nothing saved**; fails as `permission_denied` naming the cause and where to fix it |
+| unreachable, timeout, 5xx | evidence about the **network** | credentials saved, `verified: false` + `verifyWarning` |
+
+`permission_denied` rather than `login_failed` is deliberate: the credentials
+were accepted, the identity simply cannot do the job, and that hint — stop,
+contact the owner, do not retry — is the correct advice. `verified: false` is
+never a claim that the token is bad; a bad token is never written at all.
 
 This file is plain JSON on disk, not OS-keychain-backed — a deliberate v1
 scope cut, not an oversight; see [07](./07-spec-roadmap-open-questions.md)
