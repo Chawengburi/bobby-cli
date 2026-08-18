@@ -142,8 +142,15 @@ work.
 Client-side validation, all before any network call, all → `code: "usage"`,
 exit 1:
 
-- `--document-type` ∈ `reservation_list`, `rate_sheet`, `occupancy_report`,
-  `folio`, `pos_summary`, `line_chat_history`, `other`
+- `--document-type` ∈ `reservation_list`, `rate_sheet`, **`revenue`**,
+  `occupancy_report`, `folio`, `pos_summary`, `line_chat_history`, `other`
+  · 🔴 **`revenue` เพิ่มเข้ามา 2026-08-18** — brief ไม่มีค่านี้ แต่คลังจริงมีเอกสาร
+  ชนิดนี้ 4 ใบ ผลคือ CLI ปฏิเสธ `--document-type revenue` เป็น `usage` ตั้งแต่ยัง
+  ไม่ออกเน็ต และเอกสารทั้ง 4 ใบเข้าถึงผ่านตัวกรองไม่ได้เลย
+  · สำรวจคลังวันเดียวกัน (23 เอกสาร): `reservation_list` 13 · `rate_sheet` 5 ·
+  `revenue` 4 · `line_chat_history` 1 · **`occupancy_report` / `folio` /
+  `pos_summary` ไม่มีสักใบ** — enum ชุดนี้จึงเป็นรายการที่ตั้งใจไว้ ไม่ใช่ของที่
+  ระบบมีจริง (ปิด V-4)
 - `--source-system` ∈ `hotelline`, `hoteltime`, `pos_sql`
 - date formats: `--day` `YYYY-MM-DD`, `--month` `YYYY-MM`,
   `--date-from`/`--date-to` `YYYY-MM-DD`
@@ -523,7 +530,7 @@ Production rollout is out of scope for this round.
 | 1 | "ขอดูไฟล์ reservation หน่อย" | `search --document-type reservation_list` → **ชื่อไฟล์ + คำอธิบาย** as a Thai list, no scores/URLs |
 | 2 | "มีรายงาน occupancy เดือนเมษายน 2026 ไหมคะ" | `search --document-type occupancy_report --month 2026-04` → file list |
 | 3 | "เดือนนั้น occupancy เฉลี่ยเท่าไหร่" | `fetch` top hit → number quoted from the markdown |
-| 4 | "มีเอกสารเรื่องดาวอังคารไหม" | zero results → "ไม่พบเอกสาร…", **no fabrication** |
+| 4 | "มีเอกสารเรื่องดาวอังคารไหม" | 🔴 **เกณฑ์เดิม "zero results" เป็นไปไม่ได้** — hybrid search คืน top-K เสมอและไม่มีเกณฑ์คะแนนขั้นต่ำ (brief § 3 ระบุเองว่าตัด score threshold ออก) ยิงจริง 2026-08-18: คำค้นนี้คืน **10 ไฟล์ reservation** (score 0.5 / 0.33 / 0.25) · **เกณฑ์ใหม่: บอทต้องตอบว่า "ไม่พบเอกสารเกี่ยวกับ…" ทั้งที่ได้ไฟล์กลับมา** — การกันตอบมั่วอยู่ที่กฎของ agent ไม่ใช่ที่ตัวค้นหา · ✅ **ผ่านแล้ว 2026-08-18** หลังเพิ่มกฎลง `AGENTS.md` · ผลลัพธ์ 0 รายการ *เป็นไปได้* เฉพาะตอนกรองด้วย filter (เช่น `--document-type occupancy_report` ที่คลังไม่มีสักใบ) |
 
 **Measure the latency of scenario 3 once** (review fix 8). Worst case is two
 server round trips, each capped at the server's 30 s context timeout, plus
@@ -538,11 +545,11 @@ shallowly.
 | # | Item | Action |
 |---|---|---|
 | V-1 | `--limit` ceiling: the brief says the server clamps at 50, the live OpenAPI declares `maximum: 500`. They disagree | one live call at `limit=60`; relax the § 3.1 rule if the server honors it |
-| V-2 | `AIFileResult` has no `primary_date`, though the brief describes the filter-only path as sorted by it | § 3.1 falls back to earliest `time_events[].start`; confirm with the uploader's author |
+| V-2 | `AIFileResult` has no `primary_date`, though the brief describes the filter-only path as sorted by it | **ยังเปิดอยู่** — § 3.1 ใช้ `time_events[].start` ที่เก่าที่สุดแทน (ตัดเวลาออกเหลือ `YYYY-MM-DD` ตั้งแต่ 2026-08-18 เพราะของจริงคืน timestamp เต็ม) · ต้องถาม dev เจ้าของ uploader ไม่ใช่ทดสอบเอง |
 | V-3 | Thai queries | ✅ **CLOSED 2026-08-18 (live):** two unrelated Thai queries returned sensibly different sets — "รายงานการจอง" → `Reservations_*`, "ยอดขายอาหารและเครื่องดื่ม" → `*_Yield_Optimization` / `*_PerType_Optimization`. The D-5 degenerate-vector class does not appear here. Note the scores came back as `0.5 / 0.3333 / 0.25` = `1/2, 1/3, 1/4` — plainly RRF ranks, which confirms § 3.1's rule to keep `score` out of `text` |
-| V-4 | `document_type` / `source_system` enums are copied into the CLI; the OpenAPI declares both as bare `type: string` | a wrong value fails client-side with a clear message; re-check if the uploader publishes them |
+| V-4 | `document_type` / `source_system` enums are copied into the CLI; the OpenAPI declares both as bare `type: string` | ✅ **ปิดแล้ว 2026-08-18 (สำรวจคลังจริง): enum ของ brief ผิด** — ตกค่า `revenue` ที่มีจริง 4 ใบ และมี 3 ค่าที่ไม่มีเอกสารเลย · แก้ที่ § 3.1 แล้ว · **บทเรียน: enum ที่ hard-code ฝั่ง client กลายเป็นตัวบล็อกทันทีที่ระบบต้นทางเพิ่มชนิดใหม่** เจออาการนี้อีกให้เทียบกับคลังจริงก่อนโทษผู้ใช้ |
 | V-5 | How often `description` is populated | ✅ **CLOSED 2026-08-18 (live):** `description`, `title`, `original_name` and `md_file_url` were all present on **13/13** records. The demo's name + description output shape is safe; the fallback chain stays as written but should not be needed |
-| V-6 | openClaw's per-turn timeout vs the ~70 s worst case | § 6 |
+| V-6 | openClaw's per-turn timeout vs the ~70 s worst case | ✅ **ปิดแล้ว 2026-08-18 (วัดจริง): เทิร์นที่ใช้เวลา 8 นาทีวิ่งจนจบโดยไม่ถูกตัด** → per-turn timeout ของโฮสต์นี้สูงกว่า 480 วินาที เกินกว่าที่กังวลไว้มาก · **แต่ 8 นาทีคือประสบการณ์ที่แย่ในแชต** ต้นเหตุคือ agent ดึง markdown 150k+100k ตัวอักษรมาตอบคำถามระดับแถว — ถ้าเคสนี้จะใช้บ่อยต้องถามจากระบบต้นทาง ไม่ใช่ให้โมเดลอ่านทั้งไฟล์ |
 | R-1 | **Anyone in an allowlisted guild can read any indexed document.** No per-user authorization exists | accepted for this round by the owner. Say it out loud before demoing to anyone whose data is in the corpus |
 | R-2 | The token is a shared, long-lived PocketBase credential on the host | mitigated only by file mode and the never-print rule. Do not put it anywhere a Discord user can reach |
 
