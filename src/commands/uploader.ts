@@ -33,9 +33,14 @@ const PROFILE_OPTION = [
   "use a named credential profile instead of the default (see BOBBY_CLI_PROFILES_DIR)",
 ] as const;
 
+// Copied from the integration brief, plus `revenue`, which the brief's enum
+// omits even though the live corpus is 4/23 documents of that type (checked
+// 2026-08-18). A value missing here is not a cosmetic gap: it is rejected
+// before the request goes out, so those documents become unreachable.
 const DOCUMENT_TYPES = [
   "reservation_list",
   "rate_sheet",
+  "revenue",
   "occupancy_report",
   "folio",
   "pos_summary",

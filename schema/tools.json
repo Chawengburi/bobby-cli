@@ -961,6 +961,7 @@
             "enum": [
               "reservation_list",
               "rate_sheet",
+              "revenue",
               "occupancy_report",
               "folio",
               "pos_summary",
